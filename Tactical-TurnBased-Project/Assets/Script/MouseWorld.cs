@@ -10,10 +10,6 @@ namespace kelsgaming.site
         {
             instance = this;
         }
-        private void Update()
-        {
-            transform.position = MouseWorld.GetPosition();
-        }
         public static Vector3 GetPosition()
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);

@@ -14,9 +14,9 @@ namespace kelsgaming.site
                 float moveSpeed = 4f;
                 transform.position += moveDirection *moveSpeed * Time.deltaTime;
             }
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Input.GetMouseButtonDown(0))
             {
-                Move(new Vector3(4, 0, 4));
+                Move(MouseWorld.GetPosition());
             }
         }
 
