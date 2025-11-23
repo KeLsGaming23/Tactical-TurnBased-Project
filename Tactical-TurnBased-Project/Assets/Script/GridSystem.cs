@@ -28,7 +28,7 @@ namespace kelsgaming.site
         {
             return new Vector3(gridPosition.x, 0, gridPosition.z) * cellSize;
         }
-        public GridPosition GridPosition(Vector3 worlPosition)
+        public GridPosition GetGridPosition(Vector3 worlPosition)
         {
             return new GridPosition(
                 Mathf.RoundToInt(worlPosition. x / cellSize),
