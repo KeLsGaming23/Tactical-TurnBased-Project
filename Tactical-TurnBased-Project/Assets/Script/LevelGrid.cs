@@ -35,5 +35,6 @@ namespace kelsgaming.site
             AddUnitAtGridPosition(toGridPosition, unit);
         }
         public GridPosition GetGridPosition(Vector3 worldPosition) => gridSystem.GetGridPosition(worldPosition);
+        public Vector3 GetWorldPosition(GridPosition gridPosition) => gridSystem.GetWorldPosition(gridPosition);
     }
 }
