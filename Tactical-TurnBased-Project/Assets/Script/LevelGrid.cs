@@ -16,12 +16,15 @@ namespace kelsgaming.site
         }
         public void AddUnitAtGridPosition(GridPosition gridPosition, Unit unit)
         {
+            Debug.Log($"[Add] Adding unit to cell {gridPosition}");
             GridObject gridObject = gridSystem.GetGridObject(gridPosition);
             gridObject.AddUnit(unit);
+            Debug.Log($"[Add] Now cell {gridPosition} has {gridObject.GetUnit().Count} units.");
         }
         public List<Unit> GetUnitListAtGridPosition(GridPosition gridPosition)
         {
             GridObject gridObject = gridSystem.GetGridObject(gridPosition);
+            Debug.Log($"[Check] Cell {gridPosition} contains {gridObject.GetUnit().Count} units.");
             return gridObject.GetUnit();
         }
         public void RemoveUnitAtGridPosition(GridPosition gridPosition, Unit unit)
