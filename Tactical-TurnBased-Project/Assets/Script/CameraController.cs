@@ -1,9 +1,19 @@
+using Unity.Cinemachine;
 using UnityEngine;
 
 namespace kelsgaming.site
 {
     public class CameraController : MonoBehaviour
     {
+        private const float MIN_FOLLOW_ZOOM = 5f;
+        private const float MAX_FOLLOW_ZOOM = -3f;
+        [SerializeField] private CinemachinePositionComposer virtualCamera;
+
+        private Vector3 targetFollowOffset;
+        private void Start()
+        {
+            targetFollowOffset = virtualCamera.TargetOffset;
+        }
         private void Update()
         {
             Vector3 inputMoveDir = new Vector3(0, 0, 0);
@@ -48,6 +58,20 @@ namespace kelsgaming.site
             }
             float rotationSpeed = 100f;
             transform.eulerAngles += rotationVector * rotationSpeed * Time.deltaTime;
+
+            //Zoom Logic
+            float zoomAmount = -1f;
+            float zoomSpeed = 5f;
+            if (Input.mouseScrollDelta.y > 0)
+            {
+                targetFollowOffset.z -= zoomAmount;
+            }
+            if (Input.mouseScrollDelta.y < 0)
+            {
+                targetFollowOffset.z += zoomAmount;
+            }
+            targetFollowOffset.z = Mathf.Clamp(targetFollowOffset.z, MAX_FOLLOW_ZOOM, MIN_FOLLOW_ZOOM);
+            virtualCamera.TargetOffset = Vector3.Lerp(virtualCamera.TargetOffset, targetFollowOffset, Time.deltaTime * zoomSpeed);
         }
     }
 }

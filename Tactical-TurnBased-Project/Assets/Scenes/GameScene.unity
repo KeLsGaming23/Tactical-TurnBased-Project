@@ -588,6 +588,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49bc346d96712584a99d3d16010547b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  virtualCamera: {fileID: 1429642028}
 --- !u!1001 &537009063
 PrefabInstance:
   m_ObjectHideFlags: 0
