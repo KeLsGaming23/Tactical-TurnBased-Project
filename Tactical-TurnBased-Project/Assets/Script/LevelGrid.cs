@@ -43,5 +43,7 @@ namespace kelsgaming.site
             GridObject gridObject = gridSystem.GetGridObject(gridPosition);
             return gridObject.HasAnyUnit();
         }
+        public int GetWidth() => gridSystem.GetWidth();
+        public int GetHeight() => gridSystem.GetHeight();
     }
 }
