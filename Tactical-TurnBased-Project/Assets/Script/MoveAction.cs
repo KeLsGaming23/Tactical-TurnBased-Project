@@ -35,10 +35,16 @@ namespace kelsgaming.site
                 unitAnimator.SetBool("IsWalking", false);
             }
         }
-        public void Move(Vector3 targetPosition)
+        public void Move(GridPosition gridPosition)
         {
-            this.targetPosition = targetPosition;
+            this.targetPosition = LevelGrid.Instance.GetWorldPosition(gridPosition);
         }
+        public bool IsValidActionGridPosition(GridPosition gridPosition)
+        {
+            List<GridPosition> validGridPositionList = GetValidActionGridPositionList();
+            return validGridPositionList.Contains(gridPosition);
+        }
+
         public List<GridPosition> GetValidActionGridPositionList()
         {
             List<GridPosition> validGridPosition = new List<GridPosition>();
@@ -49,7 +55,19 @@ namespace kelsgaming.site
                 {
                     GridPosition offsetGridPosition = new GridPosition(x, z);
                     GridPosition testGridPosition = unitGridPosition + offsetGridPosition;
-                    Debug.Log(testGridPosition);
+                    if (!LevelGrid.Instance.IsValidGridPosition(testGridPosition))
+                    {
+                        continue;
+                    }
+                    if (unitGridPosition == testGridPosition)
+                    {
+                        continue;
+                    }
+                    if (LevelGrid.Instance.HasAnyUnitOnGridPosition(testGridPosition))
+                    {
+                        continue;
+                    }
+                    validGridPosition.Add(testGridPosition);
                 }
             }
             return validGridPosition;

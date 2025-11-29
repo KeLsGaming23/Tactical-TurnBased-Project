@@ -5,7 +5,7 @@ namespace kelsgaming.site
 {
     public class UnitActionSystem : MonoBehaviour
     {
-        public static UnitActionSystem Instance {get; private set;}
+        public static UnitActionSystem Instance { get; private set; }
         public event EventHandler OnSelectedUnitChanged;
         [SerializeField] private Unit selectedUnit;
         [SerializeField] private LayerMask unitLayerMask;
@@ -15,19 +15,25 @@ namespace kelsgaming.site
         }
         private void Update()
         {
-            
+
             if (Input.GetMouseButtonDown(0))
             {
                 if (TryHandleUnitSelection()) return;
-                selectedUnit.GetMoveAction().Move(MouseWorld.GetPosition());
+                GridPosition mouseGridPosition = LevelGrid.Instance.GetGridPosition(MouseWorld.GetPosition());
+
+                if (selectedUnit.GetMoveAction().IsValidActionGridPosition(mouseGridPosition))
+                {
+                    selectedUnit.GetMoveAction().Move(mouseGridPosition);
+                }
+
             }
         }
         private bool TryHandleUnitSelection()
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if(Physics.Raycast(ray, out RaycastHit raycastHit, float.MaxValue, unitLayerMask))
+            if (Physics.Raycast(ray, out RaycastHit raycastHit, float.MaxValue, unitLayerMask))
             {
-                if(raycastHit.transform.TryGetComponent<Unit>(out Unit unit))
+                if (raycastHit.transform.TryGetComponent<Unit>(out Unit unit))
                 {
                     SetSelectedUnit(unit);
                     return true;
