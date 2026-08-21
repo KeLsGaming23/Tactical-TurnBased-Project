@@ -37,6 +37,7 @@ namespace kelsgaming.site
         private GUIStyle enemyHeaderStyle;
         private GUIStyle subheaderStyle;
         private GUIStyle apBadgeStyle;
+        private GUIStyle statsStyle;
         private GUIStyle speedAdvantageStyle;
         private GUIStyle hintStyle;
         private GUIStyle busyStyle;
@@ -105,7 +106,7 @@ namespace kelsgaming.site
 
             // Enemy Header Style
             enemyHeaderStyle = new GUIStyle(headerStyle);
-            enemyHeaderStyle.normal.textColor = new Color(1f, 0.3f, 0.3f, 1f);
+            enemyHeaderStyle.normal.textColor = new Color(1f, 0.35f, 0.35f, 1f);
 
             // Subheader Style
             subheaderStyle = new GUIStyle(GUI.skin.label);
@@ -113,9 +114,16 @@ namespace kelsgaming.site
             subheaderStyle.alignment = TextAnchor.MiddleCenter;
             subheaderStyle.normal.textColor = new Color(0.7f, 0.75f, 0.8f, 1f);
 
+            // Stats Style
+            statsStyle = new GUIStyle(GUI.skin.label);
+            statsStyle.fontSize = 12;
+            statsStyle.fontStyle = FontStyle.Bold;
+            statsStyle.alignment = TextAnchor.MiddleCenter;
+            statsStyle.normal.textColor = new Color(0.9f, 0.95f, 1f, 1f);
+
             // AP Badge Style
             apBadgeStyle = new GUIStyle(GUI.skin.label);
-            apBadgeStyle.fontSize = 13;
+            apBadgeStyle.fontSize = 12;
             apBadgeStyle.fontStyle = FontStyle.Bold;
             apBadgeStyle.alignment = TextAnchor.MiddleCenter;
             apBadgeStyle.normal.textColor = new Color(1f, 0.88f, 0.2f, 1f);
@@ -208,8 +216,8 @@ namespace kelsgaming.site
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
             if (activeUnit == null) return;
 
-            float bannerWidth = 440f;
-            float bannerHeight = 46f;
+            float bannerWidth = 480f;
+            float bannerHeight = 58f;
             float x = (Screen.width - bannerWidth) * 0.5f;
             float y = 12f;
 
@@ -220,15 +228,17 @@ namespace kelsgaming.site
 
             string factionTag = activeUnit.IsEnemy() ? "[ENEMY TURN]" : "[PLAYER TURN]";
             string roundText = $"ROUND {TurnSystem.Instance.GetRoundNumber()}  |  {factionTag} {activeUnit.name}";
-            string statsText = $"Speed: {activeUnit.GetSpeed()}  |  Action Points: {activeUnit.GetActionPoints()} / {activeUnit.GetMaxActionPoints()}";
+            string statsText = $"HP: {activeUnit.GetHealth()}/{activeUnit.GetMaxHealth()}  |  STR: {activeUnit.GetStrength()}  |  DEF: {activeUnit.GetDefense()}  |  SPD: {activeUnit.GetSpeed()}";
+            string apText = $"Action Points: {activeUnit.GetActionPoints()} / {activeUnit.GetMaxActionPoints()}";
 
             if (TurnSystem.Instance.HasSpeedAdvantage())
             {
-                statsText += "  ⚡ DOUBLE MOVE (4 AP)";
+                apText += "  ⚡ DOUBLE MOVE (4 AP)";
             }
 
-            GUI.Label(new Rect(x, y + 4f, bannerWidth, 18f), roundText, activeHeaderStyle);
-            GUI.Label(new Rect(x, y + 23f, bannerWidth, 18f), statsText, apBadgeStyle);
+            GUI.Label(new Rect(x, y + 3f, bannerWidth, 18f), roundText, activeHeaderStyle);
+            GUI.Label(new Rect(x, y + 20f, bannerWidth, 18f), statsText, statsStyle);
+            GUI.Label(new Rect(x, y + 37f, bannerWidth, 18f), apText, apBadgeStyle);
         }
 
         private void DrawTurnOrderQueue()
@@ -238,7 +248,7 @@ namespace kelsgaming.site
 
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
 
-            float qWidth = 230f;
+            float qWidth = 260f;
             float qHeight = 26f + sortedUnits.Count * 20f;
             float qX = Screen.width - qWidth - 14f;
             float qY = 12f;
@@ -249,11 +259,14 @@ namespace kelsgaming.site
             for (int i = 0; i < sortedUnits.Count; i++)
             {
                 Unit unit = sortedUnits[i];
+                if (unit == null) continue;
+
                 bool isCurrent = unit == activeUnit;
                 string marker = isCurrent ? "▶ " : (unit.HasActedThisRound() ? "✓ " : "  ");
                 string faction = unit.IsEnemy() ? "[E]" : "[P]";
+                string hpInfo = $"HP:{unit.GetHealth()}";
                 string status = unit.HasActedThisRound() ? "[Done]" : $"{unit.GetActionPoints()} AP";
-                string itemText = $"{marker}{faction} {unit.name} (Spd: {unit.GetSpeed()}) - {status}";
+                string itemText = $"{marker}{faction} {unit.name} ({hpInfo}, Spd:{unit.GetSpeed()}) - {status}";
 
                 Color textColor = Color.white;
                 if (isCurrent)
@@ -276,7 +289,7 @@ namespace kelsgaming.site
 
         private void DrawEnemyTurnIndicator(Unit enemyUnit)
         {
-            float width = 360f;
+            float width = 380f;
             float height = 40f;
             float x = (Screen.width - width) * 0.5f;
             float y = Screen.height - height - 20f;
@@ -295,10 +308,10 @@ namespace kelsgaming.site
 
             int focusedIndex = UnitActionSystem.Instance.GetSelectedMenuActionIndex();
 
-            float panelWidth = 280f;
+            float panelWidth = 300f;
             float buttonHeight = 38f;
             float buttonSpacing = 8f;
-            float headerHeight = 64f;
+            float headerHeight = 78f;
             float footerHeight = 26f;
             float panelHeight = headerHeight + actions.Length * (buttonHeight + buttonSpacing) + footerHeight;
 
@@ -308,14 +321,17 @@ namespace kelsgaming.site
             // Background Panel
             GUI.Box(new Rect(panelX, panelY, panelWidth, panelHeight), GUIContent.none, panelStyle);
 
-            // Header: Unit Name & Speed
+            // Header: Unit Name, HP & Combat Stats
             GUI.Label(new Rect(panelX, panelY + 6f, panelWidth, 20f), $"Unit: {selectedUnit.name} (Speed: {selectedUnit.GetSpeed()})", headerStyle);
+            string statsText = $"HP: {selectedUnit.GetHealth()}/{selectedUnit.GetMaxHealth()}  |  STR: {selectedUnit.GetStrength()}  |  DEF: {selectedUnit.GetDefense()}";
+            GUI.Label(new Rect(panelX, panelY + 26f, panelWidth, 18f), statsText, statsStyle);
+
             string apText = $"Action Points: {selectedUnit.GetActionPoints()} / {selectedUnit.GetMaxActionPoints()}";
-            GUI.Label(new Rect(panelX, panelY + 26f, panelWidth, 18f), apText, apBadgeStyle);
+            GUI.Label(new Rect(panelX, panelY + 44f, panelWidth, 18f), apText, apBadgeStyle);
 
             if (TurnSystem.Instance.HasSpeedAdvantage())
             {
-                GUI.Label(new Rect(panelX, panelY + 44f, panelWidth, 18f), "⚡ SPEED ADVANTAGE ACTIVE (4 AP)", speedAdvantageStyle);
+                GUI.Label(new Rect(panelX, panelY + 60f, panelWidth, 16f), "⚡ SPEED ADVANTAGE ACTIVE (4 AP)", speedAdvantageStyle);
             }
 
             // Action Choice Buttons (Vertical List)
@@ -357,12 +373,21 @@ namespace kelsgaming.site
             BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
             if (selectedUnit == null || selectedAction == null) return;
 
-            float width = 450f;
+            float width = 500f;
             float height = 38f;
             float x = (Screen.width - width) * 0.5f;
             float y = Screen.height - height - 20f;
 
-            string hint = $"[ {selectedAction.GetActionName().ToUpper()} ] Use WASD to pick destination tile and press Enter  (Esc: Cancel)";
+            string hint;
+            if (selectedAction is SpinAction)
+            {
+                hint = $"[ SPIN ATTACK ] Pick adjacent cardinal tile (Up/Down/Left/Right) & press Enter (Esc: Cancel)";
+            }
+            else
+            {
+                hint = $"[ {selectedAction.GetActionName().ToUpper()} ] Use WASD to pick destination tile and press Enter (Esc: Cancel)";
+            }
+
             GUI.Box(new Rect(x, y, width, height), hint, hintStyle);
         }
 

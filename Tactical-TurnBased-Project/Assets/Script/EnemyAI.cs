@@ -66,7 +66,7 @@ namespace kelsgaming.site
 
         public void StartEnemyTurn(Unit enemyUnit)
         {
-            if (enemyUnit == null || !enemyUnit.IsEnemy()) return;
+            if (enemyUnit == null || !enemyUnit.IsEnemy() || enemyUnit.IsDead()) return;
 
             StopAllCoroutines();
             StartCoroutine(RunEnemyTurnRoutine(enemyUnit));
@@ -75,7 +75,7 @@ namespace kelsgaming.site
         private IEnumerator RunEnemyTurnRoutine(Unit enemyUnit)
         {
             isRunningAI = true;
-            Debug.Log($"[EnemyAI] >>> ENEMY TURN ACTIVE: {enemyUnit.name} (Speed: {enemyUnit.GetSpeed()}, AP: {enemyUnit.GetActionPoints()}) <<<");
+            Debug.Log($"[EnemyAI] >>> ENEMY TURN ACTIVE: {enemyUnit.name} (HP: {enemyUnit.GetHealth()}/{enemyUnit.GetMaxHealth()}, Speed: {enemyUnit.GetSpeed()}, AP: {enemyUnit.GetActionPoints()}) <<<");
 
             // Focus camera on the active enemy
             if (GridCursor.Instance != null)
@@ -86,16 +86,18 @@ namespace kelsgaming.site
             // Brief pause before first action for smooth pacing
             yield return new WaitForSeconds(0.6f);
 
-            while (enemyUnit != null && enemyUnit.GetActionPoints() > 0)
+            while (enemyUnit != null && !enemyUnit.IsDead() && enemyUnit.GetActionPoints() > 0)
             {
                 bool actionTaken = false;
                 bool actionCompleted = false;
 
-                // Priority 1: Check if enemy is adjacent to any Player unit -> SPIN Attack!
-                Unit adjacentPlayer = GetAdjacentPlayerUnit(enemyUnit);
-                if (adjacentPlayer != null && enemyUnit.CanSpendActionPointsToTakeAction(enemyUnit.GetSpinAction()))
+                // Priority 1: Check if enemy has a player in cardinal range (Up/Down/Left/Right 1 cell) -> SPIN Attack!
+                GridPosition targetCardinalPos;
+                Unit cardinalPlayer = GetCardinalPlayerUnit(enemyUnit, out targetCardinalPos);
+
+                if (cardinalPlayer != null && enemyUnit.CanSpendActionPointsToTakeAction(enemyUnit.GetSpinAction()))
                 {
-                    Debug.Log($"[EnemyAI] {enemyUnit.name} is adjacent to {adjacentPlayer.name}! Executing SPIN Attack!");
+                    Debug.Log($"[EnemyAI] {enemyUnit.name} attacking {cardinalPlayer.name} with Cardinal Spin Attack at {targetCardinalPos}!");
 
                     if (UnitActionSystem.Instance != null)
                     {
@@ -104,7 +106,7 @@ namespace kelsgaming.site
                     }
 
                     enemyUnit.TrySpendActionPointsToTakeAction(enemyUnit.GetSpinAction());
-                    enemyUnit.GetSpinAction().TakeAction(enemyUnit.GetGridPosition(), () =>
+                    enemyUnit.GetSpinAction().TakeAction(targetCardinalPos, () =>
                     {
                         actionCompleted = true;
                         if (UnitActionSystem.Instance != null)
@@ -178,22 +180,30 @@ namespace kelsgaming.site
             }
         }
 
-        private Unit GetAdjacentPlayerUnit(Unit enemyUnit)
+        private Unit GetCardinalPlayerUnit(Unit enemyUnit, out GridPosition targetGridPosition)
         {
+            targetGridPosition = new GridPosition(0, 0);
             GridPosition enemyPos = enemyUnit.GetGridPosition();
-            Unit[] allUnits = FindObjectsByType<Unit>(FindObjectsSortMode.None);
 
-            foreach (Unit unit in allUnits)
+            GridPosition[] cardinalOffsets = new GridPosition[]
             {
-                if (unit.IsEnemy()) continue;
+                new GridPosition(0, +1),  // UP
+                new GridPosition(0, -1),  // DOWN
+                new GridPosition(-1, 0),  // LEFT
+                new GridPosition(+1, 0),  // RIGHT
+            };
 
-                GridPosition playerPos = unit.GetGridPosition();
-                int dx = Mathf.Abs(enemyPos.x - playerPos.x);
-                int dz = Mathf.Abs(enemyPos.z - playerPos.z);
-
-                if (dx <= 1 && dz <= 1 && (dx != 0 || dz != 0))
+            foreach (GridPosition offset in cardinalOffsets)
+            {
+                GridPosition testPos = enemyPos + offset;
+                if (LevelGrid.Instance != null && LevelGrid.Instance.IsValidGridPosition(testPos))
                 {
-                    return unit;
+                    Unit unitOnTile = LevelGrid.Instance.GetUnitAtGridPosition(testPos);
+                    if (unitOnTile != null && !unitOnTile.IsEnemy() && !unitOnTile.IsDead())
+                    {
+                        targetGridPosition = testPos;
+                        return unitOnTile;
+                    }
                 }
             }
 
@@ -209,7 +219,7 @@ namespace kelsgaming.site
 
             foreach (Unit unit in allUnits)
             {
-                if (unit.IsEnemy()) continue;
+                if (unit == null || unit.IsEnemy() || unit.IsDead()) continue;
 
                 GridPosition playerPos = unit.GetGridPosition();
                 int distance = Mathf.Abs(enemyPos.x - playerPos.x) + Mathf.Abs(enemyPos.z - playerPos.z);

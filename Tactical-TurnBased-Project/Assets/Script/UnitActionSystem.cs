@@ -188,17 +188,8 @@ namespace kelsgaming.site
             else if (chosenAction is SpinAction spinAction)
             {
                 SetSelectedAction(spinAction);
-                SetFlowState(ActionFlowState.ActionExecuting);
-                SetBusy();
-
-                selectedUnit.TrySpendActionPointsToTakeAction(spinAction);
-
-                spinAction.TakeAction(selectedUnit.GetGridPosition(), () =>
-                {
-                    ClearBusy();
-                    OnActionCompleted();
-                });
-                Debug.Log($"[Action Menu] Executing SPIN on {selectedUnit.name}.");
+                SetFlowState(ActionFlowState.TargetGridSelection);
+                Debug.Log($"[Action Menu] Selected SPIN ATTACK. WASD to select cardinal direction (Up/Down/Left/Right), Press Enter to strike.");
             }
             else
             {
