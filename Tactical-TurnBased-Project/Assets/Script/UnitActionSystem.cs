@@ -69,11 +69,15 @@ namespace kelsgaming.site
                 return;
             }
 
-            // In Grid Navigation, pressing Enter or Space opens Action Menu for the active turn unit
+            // Quick shortcut: Press Space in Grid Navigation to refocus active unit and open menu
             if (currentFlowState == ActionFlowState.GridNavigation && selectedUnit != null)
             {
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+                if (Input.GetKeyDown(KeyCode.Space))
                 {
+                    if (GridCursor.Instance != null)
+                    {
+                        GridCursor.Instance.SetSelectedGridPosition(selectedUnit.GetGridPosition());
+                    }
                     OpenActionMenu();
                 }
             }
@@ -139,8 +143,10 @@ namespace kelsgaming.site
 
         public void CloseActionMenu()
         {
+            selectedAction = null;
             SetFlowState(ActionFlowState.GridNavigation);
-            Debug.Log($"[UnitActionSystem] Action Menu closed. Navigating grid with WASD (Only {selectedUnit?.name} can act).");
+            OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
+            Debug.Log($"[UnitActionSystem] Action Menu closed. Exploring grid with WASD (Only {selectedUnit?.name} can act).");
         }
 
         public void CancelTargetSelection()
@@ -148,7 +154,7 @@ namespace kelsgaming.site
             selectedAction = null;
             SetFlowState(ActionFlowState.GridNavigation);
             OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
-            Debug.Log($"[UnitActionSystem] Action target selection cancelled. Returned to Grid Navigation.");
+            Debug.Log($"[UnitActionSystem] Target selection cancelled. Returned to Grid Navigation.");
         }
 
         public void ConfirmMenuSelection()
@@ -242,7 +248,7 @@ namespace kelsgaming.site
             else
             {
                 SetFlowState(ActionFlowState.GridNavigation);
-                Debug.Log($"[UnitActionSystem] Action completed. {selectedUnit.name} has {selectedUnit.GetActionPoints()} AP remaining. Press Enter to choose next action.");
+                Debug.Log($"[UnitActionSystem] Action completed. {selectedUnit.name} has {selectedUnit.GetActionPoints()} AP remaining. Press Enter on unit to choose next action.");
             }
         }
 
@@ -262,7 +268,17 @@ namespace kelsgaming.site
             OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        public void SetSelectedUnit(Unit unit) => SetActiveTurnUnit(unit);
+        public void SetSelectedUnit(Unit unit)
+        {
+            Unit activeTurnUnit = TurnSystem.Instance != null ? TurnSystem.Instance.GetCurrentTurnUnit() : null;
+            if (activeTurnUnit != null && unit != null && unit != activeTurnUnit)
+            {
+                Debug.Log($"[UnitActionSystem] Cannot select {unit.name}. It is {activeTurnUnit.name}'s turn!");
+                return;
+            }
+
+            SetActiveTurnUnit(unit);
+        }
 
         public void SetSelectedAction(BaseAction baseAction)
         {

@@ -46,6 +46,12 @@ namespace kelsgaming.site
             {
                 UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
                 UnitActionSystem.Instance.OnSelectedActionChanged += UnitActionSystem_OnSelectedActionChanged;
+                UnitActionSystem.Instance.OnActionFlowStateChanged += UnitActionSystem_OnActionFlowStateChanged;
+            }
+
+            if (TurnSystem.Instance != null)
+            {
+                TurnSystem.Instance.OnTurnChanged += TurnSystem_OnTurnChanged;
             }
 
             UpdateGridVisual();
@@ -67,6 +73,16 @@ namespace kelsgaming.site
         }
 
         private void UnitActionSystem_OnSelectedActionChanged(object sender, EventArgs e)
+        {
+            UpdateGridVisual();
+        }
+
+        private void UnitActionSystem_OnActionFlowStateChanged(object sender, UnitActionSystem.ActionFlowState e)
+        {
+            UpdateGridVisual();
+        }
+
+        private void TurnSystem_OnTurnChanged(object sender, EventArgs e)
         {
             UpdateGridVisual();
         }
@@ -97,8 +113,9 @@ namespace kelsgaming.site
         {
             HideAllGridPosition();
 
-            // 1. Show valid action positions for the currently selected action if any
-            if (UnitActionSystem.Instance != null)
+            // 1. Show valid action range ONLY when actively in TargetGridSelection mode
+            if (UnitActionSystem.Instance != null &&
+                UnitActionSystem.Instance.GetFlowState() == UnitActionSystem.ActionFlowState.TargetGridSelection)
             {
                 BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
                 if (selectedAction != null)

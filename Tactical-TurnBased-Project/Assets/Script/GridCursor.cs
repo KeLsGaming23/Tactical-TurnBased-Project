@@ -44,10 +44,11 @@ namespace kelsgaming.site
 
         private void Start()
         {
-            // Default to selected unit position if available, or (0,0)
-            if (UnitActionSystem.Instance != null && UnitActionSystem.Instance.GetSelectedUnit() != null)
+            // Default to active unit position if available, or (0,0)
+            Unit activeUnit = TurnSystem.Instance != null ? TurnSystem.Instance.GetCurrentTurnUnit() : null;
+            if (activeUnit != null)
             {
-                selectedGridPosition = UnitActionSystem.Instance.GetSelectedUnit().GetGridPosition();
+                selectedGridPosition = activeUnit.GetGridPosition();
             }
             else
             {
@@ -121,7 +122,7 @@ namespace kelsgaming.site
             if (LevelGrid.Instance == null || UnitActionSystem.Instance == null) return;
 
             UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
-            Unit activeUnit = UnitActionSystem.Instance.GetSelectedUnit();
+            Unit activeUnit = TurnSystem.Instance != null ? TurnSystem.Instance.GetCurrentTurnUnit() : UnitActionSystem.Instance.GetSelectedUnit();
 
             // 1. In Grid Navigation Mode:
             if (flowState == UnitActionSystem.ActionFlowState.GridNavigation)
@@ -139,7 +140,7 @@ namespace kelsgaming.site
                         }
                         else
                         {
-                            // Another unit clicked -> Restriction: Cannot control other units during active turn!
+                            // Other unit clicked -> Lock interaction to active unit only!
                             string activeName = activeUnit != null ? activeUnit.name : "None";
                             int activeSpeed = activeUnit != null ? activeUnit.GetSpeed() : 0;
                             Debug.Log($"[Turn System] Cannot select '{clickedUnit.name}' (Speed: {clickedUnit.GetSpeed()}). It is currently {activeName}'s turn (Speed: {activeSpeed})!");
@@ -148,11 +149,8 @@ namespace kelsgaming.site
                 }
                 else
                 {
-                    // Empty cell pressed in Grid Navigation -> Open Action Menu for active unit
-                    if (activeUnit != null)
-                    {
-                        UnitActionSystem.Instance.OpenActionMenu();
-                    }
+                    // Empty cell pressed while exploring in Grid Navigation -> Just log cell info
+                    Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
                 }
                 return;
             }
