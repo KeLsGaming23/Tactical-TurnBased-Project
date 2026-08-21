@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using kelsgaming.site;
 using UnityEngine;
 
@@ -18,6 +19,7 @@ public class Unit : MonoBehaviour
     private SpinAction spinAction;
     private BaseAction[] baseActionArray;
     private GridPosition gridPosition;
+    private Coroutine makeWayCoroutine;
 
     private void Awake()
     {
@@ -49,6 +51,60 @@ public class Unit : MonoBehaviour
             LevelGrid.Instance.UnitMovedGridPosition(this, gridPosition, newgridPosition);
             gridPosition = newgridPosition;
         }
+    }
+
+    public void MakeWay(Vector3 passingDirection)
+    {
+        if (makeWayCoroutine != null)
+        {
+            StopCoroutine(makeWayCoroutine);
+        }
+        makeWayCoroutine = StartCoroutine(MakeWayRoutine(passingDirection));
+    }
+
+    private IEnumerator MakeWayRoutine(Vector3 passingDirection)
+    {
+        Vector3 originalPosition = LevelGrid.Instance != null ? LevelGrid.Instance.GetWorldPosition(gridPosition) : transform.position;
+        Quaternion originalRotation = transform.rotation;
+
+        Vector3 sideDirection = Vector3.Cross(passingDirection, Vector3.up).normalized;
+        if (sideDirection == Vector3.zero) sideDirection = transform.right;
+
+        // Side hop offset
+        Vector3 targetOffset = (sideDirection * 0.45f) + (Vector3.up * 0.35f);
+        Vector3 hoppedPosition = originalPosition + targetOffset;
+
+        float hopDuration = 0.12f;
+        float elapsed = 0f;
+
+        // 1. Quick jump / step aside
+        while (elapsed < hopDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / hopDuration;
+            transform.position = Vector3.Lerp(originalPosition, hoppedPosition, t);
+            transform.rotation = Quaternion.Slerp(originalRotation, originalRotation * Quaternion.Euler(0, 0, 15f), t);
+            yield return null;
+        }
+
+        // 2. Hold briefly while teammate passes through
+        yield return new WaitForSeconds(0.18f);
+
+        // 3. Smooth spring return to original cell
+        float returnDuration = 0.15f;
+        elapsed = 0f;
+        while (elapsed < returnDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / returnDuration;
+            transform.position = Vector3.Lerp(hoppedPosition, originalPosition, t);
+            transform.rotation = Quaternion.Slerp(transform.rotation, originalRotation, t);
+            yield return null;
+        }
+
+        transform.position = originalPosition;
+        transform.rotation = originalRotation;
+        makeWayCoroutine = null;
     }
 
     public bool TrySpendActionPointsToTakeAction(BaseAction baseAction)

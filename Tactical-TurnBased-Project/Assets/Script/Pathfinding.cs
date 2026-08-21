@@ -125,7 +125,7 @@ namespace kelsgaming.site
             }
         }
 
-        public List<GridPosition> FindPath(GridPosition startGridPosition, GridPosition endGridPosition, out int pathLength)
+        public List<GridPosition> FindPath(GridPosition startGridPosition, GridPosition endGridPosition, out int pathLength, bool isMovingUnitEnemy = false)
         {
             pathLength = 0;
 
@@ -140,6 +140,12 @@ namespace kelsgaming.site
             PathNode endNode = GetNode(endGridPosition.x, endGridPosition.z);
 
             if (!endNode.IsWalkable())
+            {
+                return null;
+            }
+
+            // If the destination cell has ANY unit, it cannot be landed on
+            if (LevelGrid.Instance != null && endGridPosition != startGridPosition && LevelGrid.Instance.HasAnyUnitOnGridPosition(endGridPosition))
             {
                 return null;
             }
@@ -185,6 +191,25 @@ namespace kelsgaming.site
                         continue;
                     }
 
+                    GridPosition neighbourPos = neighbourNode.GetGridPosition();
+
+                    // Hostile unit collision check: Enemy units act as obstacles for player, and players act as obstacles for enemies
+                    if (LevelGrid.Instance != null && neighbourPos != startGridPosition)
+                    {
+                        Unit unitOnTile = LevelGrid.Instance.GetUnitAtGridPosition(neighbourPos);
+                        if (unitOnTile != null)
+                        {
+                            bool isHostile = (unitOnTile.IsEnemy() != isMovingUnitEnemy);
+                            if (isHostile)
+                            {
+                                // Hostile unit blocks path completely (cannot pass through)
+                                closedList.Add(neighbourNode);
+                                continue;
+                            }
+                            // Allied unit: Can pass through as intermediate node, but cannot end on it (already checked at start for endNode)
+                        }
+                    }
+
                     int tentativeGCost = currentNode.GetGCost() + CalculateDistance(currentNode.GetGridPosition(), neighbourNode.GetGridPosition());
 
                     if (tentativeGCost < neighbourNode.GetGCost())
@@ -206,14 +231,14 @@ namespace kelsgaming.site
             return null;
         }
 
-        public bool HasPath(GridPosition startGridPosition, GridPosition endGridPosition)
+        public bool HasPath(GridPosition startGridPosition, GridPosition endGridPosition, bool isMovingUnitEnemy = false)
         {
-            return FindPath(startGridPosition, endGridPosition, out int pathLength) != null;
+            return FindPath(startGridPosition, endGridPosition, out int pathLength, isMovingUnitEnemy) != null;
         }
 
-        public int GetPathLength(GridPosition startGridPosition, GridPosition endGridPosition)
+        public int GetPathLength(GridPosition startGridPosition, GridPosition endGridPosition, bool isMovingUnitEnemy = false)
         {
-            FindPath(startGridPosition, endGridPosition, out int pathLength);
+            FindPath(startGridPosition, endGridPosition, out int pathLength, isMovingUnitEnemy);
             return pathLength;
         }
 

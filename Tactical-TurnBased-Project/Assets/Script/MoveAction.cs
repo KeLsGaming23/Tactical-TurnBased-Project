@@ -12,7 +12,9 @@ namespace kelsgaming.site
         [SerializeField] private int maxMoveDistance = 4;
 
         private List<Vector3> positionList;
+        private List<GridPosition> pathGridPositionList;
         private int currentPositionIndex;
+        private HashSet<Unit> notifiedAllies = new HashSet<Unit>();
 
         protected override void Awake()
         {
@@ -34,6 +36,24 @@ namespace kelsgaming.site
             Vector3 moveDirection = (targetPosition - transform.position).normalized;
             float stoppingDistance = .1f;
 
+            // Check if approaching a waypoint with an ally to trigger the "Make Way" effect
+            if (pathGridPositionList != null && currentPositionIndex < pathGridPositionList.Count)
+            {
+                GridPosition currentWaypointGridPos = pathGridPositionList[currentPositionIndex];
+                if (LevelGrid.Instance != null)
+                {
+                    Unit allyUnit = LevelGrid.Instance.GetUnitAtGridPosition(currentWaypointGridPos);
+                    if (allyUnit != null && allyUnit != unit && allyUnit.IsEnemy() == unit.IsEnemy())
+                    {
+                        if (!notifiedAllies.Contains(allyUnit))
+                        {
+                            notifiedAllies.Add(allyUnit);
+                            allyUnit.MakeWay(moveDirection);
+                        }
+                    }
+                }
+            }
+
             if (Vector3.Distance(transform.position, targetPosition) > stoppingDistance)
             {
                 float moveSpeed = 4f;
@@ -47,6 +67,7 @@ namespace kelsgaming.site
                 {
                     if (unitAnimator != null) unitAnimator.SetBool("IsWalking", false);
                     isActive = false;
+                    notifiedAllies.Clear();
                     onActionComplete?.Invoke();
                 }
             }
@@ -68,10 +89,12 @@ namespace kelsgaming.site
 
         public void Move(GridPosition gridPosition)
         {
-            List<GridPosition> pathGridPositionList = null;
+            notifiedAllies.Clear();
+            pathGridPositionList = null;
+
             if (Pathfinding.Instance != null)
             {
-                pathGridPositionList = Pathfinding.Instance.FindPath(unit.GetGridPosition(), gridPosition, out int pathLength);
+                pathGridPositionList = Pathfinding.Instance.FindPath(unit.GetGridPosition(), gridPosition, out int pathLength, unit.IsEnemy());
             }
 
             currentPositionIndex = 0;
@@ -96,6 +119,7 @@ namespace kelsgaming.site
         {
             List<GridPosition> validGridPositionList = new List<GridPosition>();
             GridPosition unitGridPosition = unit.GetGridPosition();
+            bool isUnitEnemy = unit.IsEnemy();
 
             for (int x = -maxMoveDistance; x <= maxMoveDistance; x++)
             {
@@ -106,15 +130,17 @@ namespace kelsgaming.site
 
                     if (!LevelGrid.Instance.IsValidGridPosition(testGridPosition)) continue;
                     if (unitGridPosition == testGridPosition) continue;
+
+                    // Cannot end movement on ANY cell that is occupied by any unit (allied or hostile)
                     if (LevelGrid.Instance.HasAnyUnitOnGridPosition(testGridPosition)) continue;
 
-                    // Obstacle and Pathfinding checks
+                    // Obstacle and Pathfinding checks (enemy units block path, allies allow pass-through)
                     if (Pathfinding.Instance != null)
                     {
                         if (!Pathfinding.Instance.IsWalkableGridPosition(testGridPosition)) continue;
-                        if (!Pathfinding.Instance.HasPath(unitGridPosition, testGridPosition)) continue;
+                        if (!Pathfinding.Instance.HasPath(unitGridPosition, testGridPosition, isUnitEnemy)) continue;
 
-                        int pathLength = Pathfinding.Instance.GetPathLength(unitGridPosition, testGridPosition);
+                        int pathLength = Pathfinding.Instance.GetPathLength(unitGridPosition, testGridPosition, isUnitEnemy);
                         if (pathLength > maxMoveDistance * PATHFINDING_DISTANCE_MULTIPLIER) continue;
                     }
 
