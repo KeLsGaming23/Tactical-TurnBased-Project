@@ -43,6 +43,13 @@ namespace kelsgaming.site
             Unit targetUnit = LevelGrid.Instance.GetUnitAtGridPosition(targetPos);
             if (targetUnit != null && targetUnit != unit)
             {
+                // Prevent friendly fire
+                if (targetUnit.IsEnemy() == unit.IsEnemy())
+                {
+                    Debug.Log($"[Combat Attack] ⛔ You cannot attack allies ({targetUnit.name})!");
+                    return;
+                }
+
                 int attackerStrength = unit.GetStrength();
                 int targetDefense = targetUnit.GetDefense();
                 int damage = Mathf.Max(1, attackerStrength - targetDefense);
@@ -67,6 +74,26 @@ namespace kelsgaming.site
             this.isActive = true;
         }
 
+        public override bool IsValidActionGridPosition(GridPosition gridPosition)
+        {
+            if (!base.IsValidActionGridPosition(gridPosition)) return false;
+
+            if (LevelGrid.Instance != null)
+            {
+                Unit targetUnit = LevelGrid.Instance.GetUnitAtGridPosition(gridPosition);
+                if (targetUnit != null)
+                {
+                    if (targetUnit.IsEnemy() == unit.IsEnemy())
+                    {
+                        Debug.Log($"[Combat Attack] ⛔ You cannot attack allies ({targetUnit.name})! Action cancelled (no Action Points spent).");
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         public override List<GridPosition> GetValidActionGridPositionList()
         {
             List<GridPosition> validGridPositionList = new List<GridPosition>();
@@ -85,6 +112,16 @@ namespace kelsgaming.site
             {
                 GridPosition testGridPosition = unitGridPosition + offset;
                 if (!LevelGrid.Instance.IsValidGridPosition(testGridPosition)) continue;
+
+                // Exclude allied units so friendly fire is impossible
+                if (LevelGrid.Instance.HasAnyUnitOnGridPosition(testGridPosition))
+                {
+                    Unit targetUnit = LevelGrid.Instance.GetUnitAtGridPosition(testGridPosition);
+                    if (targetUnit != null && targetUnit.IsEnemy() == unit.IsEnemy())
+                    {
+                        continue; // Skip ally cell!
+                    }
+                }
 
                 validGridPositionList.Add(testGridPosition);
             }
