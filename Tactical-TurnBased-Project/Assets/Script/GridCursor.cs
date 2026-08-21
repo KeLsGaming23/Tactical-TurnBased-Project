@@ -59,6 +59,11 @@ namespace kelsgaming.site
 
         private void Update()
         {
+            if (UnitActionSystem.Instance != null && UnitActionSystem.Instance.IsBusy())
+            {
+                return;
+            }
+
             HandleMovementInput();
             HandleInteractionInput();
         }
@@ -125,23 +130,32 @@ namespace kelsgaming.site
                 return;
             }
 
-            // 2. If the cell is empty and we currently have a selected unit, check if within movement range
+            // 2. If the cell is empty and we currently have a selected unit and action
             Unit selectedUnit = UnitActionSystem.Instance != null ? UnitActionSystem.Instance.GetSelectedUnit() : null;
-            if (selectedUnit != null && selectedUnit.GetMoveAction() != null)
+            BaseAction selectedAction = UnitActionSystem.Instance != null ? UnitActionSystem.Instance.GetSelectedAction() : null;
+
+            if (selectedUnit != null && selectedAction != null)
             {
-                if (selectedUnit.GetMoveAction().IsValidActionGridPosition(gridPosition))
+                if (selectedAction.IsValidActionGridPosition(gridPosition))
                 {
-                    Debug.Log($"[GridCursor] Moving '{selectedUnit.name}' to {gridPosition}.");
-                    selectedUnit.GetMoveAction().Move(gridPosition);
+                    Debug.Log($"[GridCursor] Executing {selectedAction.GetActionName()} on '{selectedUnit.name}' to {gridPosition}.");
+                    UnitActionSystem.Instance.SetBusy();
+                    selectedAction.TakeAction(gridPosition, () =>
+                    {
+                        if (UnitActionSystem.Instance != null)
+                        {
+                            UnitActionSystem.Instance.ClearBusy();
+                        }
+                    });
                 }
                 else
                 {
-                    Debug.Log($"[GridCursor] Cell {gridPosition} is out of move range for '{selectedUnit.name}'.");
+                    Debug.Log($"[GridCursor] Cell {gridPosition} is out of range for {selectedAction.GetActionName()}.");
                 }
             }
             else
             {
-                // Cell is empty and no unit is selected
+                // Cell is empty and no unit is selected -> do nothing
                 Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
             }
         }

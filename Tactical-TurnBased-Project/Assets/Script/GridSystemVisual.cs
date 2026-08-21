@@ -45,6 +45,7 @@ namespace kelsgaming.site
             if (UnitActionSystem.Instance != null)
             {
                 UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
+                UnitActionSystem.Instance.OnSelectedActionChanged += UnitActionSystem_OnSelectedActionChanged;
             }
 
             UpdateGridVisual();
@@ -61,6 +62,11 @@ namespace kelsgaming.site
         }
 
         private void UnitActionSystem_OnSelectedUnitChanged(object sender, EventArgs e)
+        {
+            UpdateGridVisual();
+        }
+
+        private void UnitActionSystem_OnSelectedActionChanged(object sender, EventArgs e)
         {
             UpdateGridVisual();
         }
@@ -91,14 +97,14 @@ namespace kelsgaming.site
         {
             HideAllGridPosition();
 
-            // 1. Show valid action positions for the selected unit if available
-            if (UnitActionSystem.Instance != null && UnitActionSystem.Instance.GetSelectedUnit() != null)
+            // 1. Show valid action positions for the currently selected action if any
+            if (UnitActionSystem.Instance != null)
             {
-                Unit selectedUnit = UnitActionSystem.Instance.GetSelectedUnit();
-                if (selectedUnit.GetMoveAction() != null)
+                BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
+                if (selectedAction != null)
                 {
                     ShowGridPositionList(
-                        selectedUnit.GetMoveAction().GetValidActionGridPositionList(),
+                        selectedAction.GetValidActionGridPositionList(),
                         defaultGridMaterial
                     );
                 }
