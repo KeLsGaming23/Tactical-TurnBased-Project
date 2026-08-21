@@ -1108,6 +1108,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gridSystemVisualSinglePrefab: {fileID: 7873989552142010403, guid: 3665f2963215ae6409255b6401c1ba4c, type: 3}
+  defaultGridMaterial: {fileID: 2100000, guid: 50032e368d0b1764fa35fead87ba77dd, type: 2}
+  selectedGridMaterial: {fileID: 2100000, guid: e0cc3f77797a4444e93a9019421f718e, type: 2}
 --- !u!4 &2092189019
 Transform:
   m_ObjectHideFlags: 0

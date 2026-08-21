@@ -27,6 +27,10 @@ namespace kelsgaming.site
                 }
 
             }
+            if (Input.GetMouseButtonDown(1))
+            {
+                selectedUnit.GetSpinAction().Spin();
+            }
         }
         private bool TryHandleUnitSelection()
         {
@@ -44,6 +48,10 @@ namespace kelsgaming.site
         private void SetSelectedUnit(Unit unit)
         {
             selectedUnit = unit;
+            if (GridCursor.Instance != null && unit != null)
+            {
+                GridCursor.Instance.SetSelectedGridPosition(unit.GetGridPosition());
+            }
             OnSelectedUnitChanged?.Invoke(this, EventArgs.Empty);
         }
         public Unit GetSelectedUnit()
