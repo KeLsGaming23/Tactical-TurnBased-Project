@@ -27,6 +27,8 @@ namespace kelsgaming.site
 
         public abstract List<GridPosition> GetValidActionGridPositionList();
 
+        public virtual int GetActionPointsCost() => 1;
+
         public bool IsActive() => isActive;
     }
 }

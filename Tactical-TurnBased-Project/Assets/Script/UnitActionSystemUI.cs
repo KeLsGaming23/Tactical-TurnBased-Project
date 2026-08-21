@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace kelsgaming.site
@@ -30,10 +31,15 @@ namespace kelsgaming.site
         private GUIStyle panelStyle;
         private GUIStyle buttonStyle;
         private GUIStyle selectedButtonStyle;
+        private GUIStyle disabledButtonStyle;
         private GUIStyle headerStyle;
         private GUIStyle subheaderStyle;
+        private GUIStyle apBadgeStyle;
+        private GUIStyle speedAdvantageStyle;
         private GUIStyle hintStyle;
         private GUIStyle busyStyle;
+        private GUIStyle queueHeaderStyle;
+        private GUIStyle queueItemStyle;
         private bool stylesInitialized;
 
         private void Awake()
@@ -53,7 +59,7 @@ namespace kelsgaming.site
             // Panel Box Style
             panelStyle = new GUIStyle(GUI.skin.box);
             Texture2D panelTex = new Texture2D(1, 1);
-            panelTex.SetPixel(0, 0, new Color(0.06f, 0.08f, 0.11f, 0.94f));
+            panelTex.SetPixel(0, 0, new Color(0.05f, 0.07f, 0.10f, 0.95f));
             panelTex.Apply();
             panelStyle.normal.background = panelTex;
 
@@ -77,9 +83,13 @@ namespace kelsgaming.site
             activeBtnTex.Apply();
             selectedButtonStyle.normal.background = activeBtnTex;
 
+            // Disabled Button Style
+            disabledButtonStyle = new GUIStyle(buttonStyle);
+            disabledButtonStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f, 0.7f);
+
             // Header Style
             headerStyle = new GUIStyle(GUI.skin.label);
-            headerStyle.fontSize = 16;
+            headerStyle.fontSize = 15;
             headerStyle.fontStyle = FontStyle.Bold;
             headerStyle.alignment = TextAnchor.MiddleCenter;
             headerStyle.normal.textColor = new Color(0.3f, 0.9f, 1f, 1f);
@@ -90,6 +100,20 @@ namespace kelsgaming.site
             subheaderStyle.alignment = TextAnchor.MiddleCenter;
             subheaderStyle.normal.textColor = new Color(0.7f, 0.75f, 0.8f, 1f);
 
+            // AP Badge Style
+            apBadgeStyle = new GUIStyle(GUI.skin.label);
+            apBadgeStyle.fontSize = 13;
+            apBadgeStyle.fontStyle = FontStyle.Bold;
+            apBadgeStyle.alignment = TextAnchor.MiddleCenter;
+            apBadgeStyle.normal.textColor = new Color(1f, 0.88f, 0.2f, 1f);
+
+            // Speed Advantage Banner Style
+            speedAdvantageStyle = new GUIStyle(GUI.skin.label);
+            speedAdvantageStyle.fontSize = 12;
+            speedAdvantageStyle.fontStyle = FontStyle.Bold;
+            speedAdvantageStyle.alignment = TextAnchor.MiddleCenter;
+            speedAdvantageStyle.normal.textColor = new Color(0.2f, 1f, 0.5f, 1f);
+
             // Hint Style (Target Selection mode)
             hintStyle = new GUIStyle(GUI.skin.box);
             hintStyle.fontSize = 13;
@@ -97,7 +121,7 @@ namespace kelsgaming.site
             hintStyle.alignment = TextAnchor.MiddleCenter;
             hintStyle.normal.textColor = new Color(0.95f, 0.95f, 0.95f, 1f);
             Texture2D hintTex = new Texture2D(1, 1);
-            hintTex.SetPixel(0, 0, new Color(0.08f, 0.12f, 0.18f, 0.85f));
+            hintTex.SetPixel(0, 0, new Color(0.08f, 0.12f, 0.18f, 0.90f));
             hintTex.Apply();
             hintStyle.normal.background = hintTex;
 
@@ -108,14 +132,27 @@ namespace kelsgaming.site
             busyStyle.alignment = TextAnchor.MiddleCenter;
             busyStyle.normal.textColor = new Color(1f, 0.8f, 0.2f, 1f);
 
+            // Queue Styles
+            queueHeaderStyle = new GUIStyle(GUI.skin.label);
+            queueHeaderStyle.fontSize = 12;
+            queueHeaderStyle.fontStyle = FontStyle.Bold;
+            queueHeaderStyle.normal.textColor = new Color(0.3f, 0.85f, 1f, 1f);
+
+            queueItemStyle = new GUIStyle(GUI.skin.label);
+            queueItemStyle.fontSize = 11;
+            queueItemStyle.normal.textColor = Color.white;
+
             stylesInitialized = true;
         }
 
         private void OnGUI()
         {
-            if (UnitActionSystem.Instance == null) return;
+            if (UnitActionSystem.Instance == null || TurnSystem.Instance == null) return;
 
             InitStyles();
+
+            DrawTopTurnBanner();
+            DrawTurnOrderQueue();
 
             UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
 
@@ -140,7 +177,62 @@ namespace kelsgaming.site
                 return;
             }
 
-            // 4. GridNavigation: UI is completely hidden (blank/default)
+            // 4. Grid Navigation State: Render prompt hint to press Enter
+            DrawNavigationPrompt();
+        }
+
+        private void DrawTopTurnBanner()
+        {
+            Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
+            if (activeUnit == null) return;
+
+            float bannerWidth = 420f;
+            float bannerHeight = 44f;
+            float x = (Screen.width - bannerWidth) * 0.5f;
+            float y = 12f;
+
+            GUI.Box(new Rect(x, y, bannerWidth, bannerHeight), GUIContent.none, panelStyle);
+
+            string roundText = $"ROUND {TurnSystem.Instance.GetRoundNumber()}  |  TURN: {activeUnit.name}";
+            string statsText = $"Speed: {activeUnit.GetSpeed()}  |  Action Points: {activeUnit.GetActionPoints()} / {activeUnit.GetMaxActionPoints()}";
+
+            if (TurnSystem.Instance.HasSpeedAdvantage())
+            {
+                statsText += "  ⚡ DOUBLE MOVE (4 AP)";
+            }
+
+            GUI.Label(new Rect(x, y + 4f, bannerWidth, 18f), roundText, headerStyle);
+            GUI.Label(new Rect(x, y + 22f, bannerWidth, 18f), statsText, apBadgeStyle);
+        }
+
+        private void DrawTurnOrderQueue()
+        {
+            List<Unit> sortedUnits = TurnSystem.Instance.GetAllUnitsSortedBySpeed();
+            if (sortedUnits == null || sortedUnits.Count == 0) return;
+
+            Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
+
+            float qWidth = 210f;
+            float qHeight = 26f + sortedUnits.Count * 20f;
+            float qX = Screen.width - qWidth - 14f;
+            float qY = 12f;
+
+            GUI.Box(new Rect(qX, qY, qWidth, qHeight), GUIContent.none, panelStyle);
+            GUI.Label(new Rect(qX + 8f, qY + 4f, qWidth - 16f, 18f), "SPEED INITIATIVE QUEUE", queueHeaderStyle);
+
+            for (int i = 0; i < sortedUnits.Count; i++)
+            {
+                Unit unit = sortedUnits[i];
+                bool isCurrent = unit == activeUnit;
+                string marker = isCurrent ? "▶ " : (unit.HasActedThisRound() ? "✓ " : "  ");
+                string status = unit.HasActedThisRound() ? "[Done]" : $"{unit.GetActionPoints()} AP";
+                string itemText = $"{marker}{unit.name} (Spd: {unit.GetSpeed()}) - {status}";
+
+                Color textColor = isCurrent ? new Color(0.2f, 1f, 0.45f, 1f) : (unit.HasActedThisRound() ? Color.gray : Color.white);
+                queueItemStyle.normal.textColor = textColor;
+
+                GUI.Label(new Rect(qX + 8f, qY + 22f + i * 19f, qWidth - 16f, 18f), itemText, queueItemStyle);
+            }
         }
 
         private void DrawActionMenu()
@@ -153,10 +245,10 @@ namespace kelsgaming.site
 
             int focusedIndex = UnitActionSystem.Instance.GetSelectedMenuActionIndex();
 
-            float panelWidth = 260f;
-            float buttonHeight = 36f;
+            float panelWidth = 280f;
+            float buttonHeight = 38f;
             float buttonSpacing = 8f;
-            float headerHeight = 46f;
+            float headerHeight = 64f;
             float footerHeight = 26f;
             float panelHeight = headerHeight + actions.Length * (buttonHeight + buttonSpacing) + footerHeight;
 
@@ -166,9 +258,15 @@ namespace kelsgaming.site
             // Background Panel
             GUI.Box(new Rect(panelX, panelY, panelWidth, panelHeight), GUIContent.none, panelStyle);
 
-            // Header: Unit Name
-            GUI.Label(new Rect(panelX, panelY + 6f, panelWidth, 22f), $"Unit: {selectedUnit.name}", headerStyle);
-            GUI.Label(new Rect(panelX, panelY + 26f, panelWidth, 18f), "CHOOSE ACTION", subheaderStyle);
+            // Header: Unit Name & Speed
+            GUI.Label(new Rect(panelX, panelY + 6f, panelWidth, 20f), $"Unit: {selectedUnit.name} (Speed: {selectedUnit.GetSpeed()})", headerStyle);
+            string apText = $"Action Points: {selectedUnit.GetActionPoints()} / {selectedUnit.GetMaxActionPoints()}";
+            GUI.Label(new Rect(panelX, panelY + 26f, panelWidth, 18f), apText, apBadgeStyle);
+
+            if (TurnSystem.Instance.HasSpeedAdvantage())
+            {
+                GUI.Label(new Rect(panelX, panelY + 44f, panelWidth, 18f), "⚡ SPEED ADVANTAGE ACTIVE (4 AP)", speedAdvantageStyle);
+            }
 
             // Action Choice Buttons (Vertical List)
             float startY = panelY + headerHeight;
@@ -179,23 +277,28 @@ namespace kelsgaming.site
             {
                 BaseAction action = actions[i];
                 string actionName = action.GetActionName().ToUpper();
+                int cost = action.GetActionPointsCost();
+                bool canAfford = selectedUnit.CanSpendActionPointsToTakeAction(action);
                 bool isFocused = (i == focusedIndex);
 
-                string label = isFocused ? $"▶  {i + 1}. {actionName}  ◀" : $"{i + 1}. {actionName}";
-                GUIStyle style = isFocused ? selectedButtonStyle : buttonStyle;
+                string label = isFocused ? $"▶  {i + 1}. {actionName} ({cost} AP)  ◀" : $"{i + 1}. {actionName} ({cost} AP)";
+                GUIStyle style = !canAfford ? disabledButtonStyle : (isFocused ? selectedButtonStyle : buttonStyle);
 
                 Rect btnRect = new Rect(btnX, startY + i * (buttonHeight + buttonSpacing), btnWidth, buttonHeight);
 
                 if (GUI.Button(btnRect, label, style))
                 {
-                    UnitActionSystem.Instance.SetSelectedMenuActionIndex(i);
-                    UnitActionSystem.Instance.ConfirmMenuSelection();
+                    if (canAfford)
+                    {
+                        UnitActionSystem.Instance.SetSelectedMenuActionIndex(i);
+                        UnitActionSystem.Instance.ConfirmMenuSelection();
+                    }
                 }
             }
 
             // Footer Guide
             float footerY = startY + actions.Length * (buttonHeight + buttonSpacing);
-            GUI.Label(new Rect(panelX, footerY + 2f, panelWidth, 20f), "W / S : Navigate   |   Enter : Select   |   Esc : Cancel", subheaderStyle);
+            GUI.Label(new Rect(panelX, footerY + 2f, panelWidth, 20f), "W / S : Navigate   |   Enter : Select   |   Esc : Explore", subheaderStyle);
         }
 
         private void DrawTargetSelectionHint()
@@ -204,13 +307,27 @@ namespace kelsgaming.site
             BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
             if (selectedUnit == null || selectedAction == null) return;
 
-            float width = 420f;
-            float height = 36f;
+            float width = 450f;
+            float height = 38f;
             float x = (Screen.width - width) * 0.5f;
             float y = Screen.height - height - 20f;
 
-            string hint = $"[ {selectedAction.GetActionName().ToUpper()} ] Use WASD to pick destination tile, then press Enter  (Esc: Cancel)";
+            string hint = $"[ {selectedAction.GetActionName().ToUpper()} ] Use WASD to pick destination tile and press Enter  (Esc: Cancel)";
             GUI.Box(new Rect(x, y, width, height), hint, hintStyle);
+        }
+
+        private void DrawNavigationPrompt()
+        {
+            Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
+            if (activeUnit == null) return;
+
+            float width = 360f;
+            float height = 34f;
+            float x = (Screen.width - width) * 0.5f;
+            float y = Screen.height - height - 16f;
+
+            string prompt = $"Press [ENTER] to Open Action Menu for {activeUnit.name}";
+            GUI.Box(new Rect(x, y, width, height), prompt, hintStyle);
         }
 
         private void DrawExecutingIndicator()

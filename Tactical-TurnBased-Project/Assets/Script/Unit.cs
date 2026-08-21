@@ -1,8 +1,18 @@
+using System;
 using kelsgaming.site;
 using UnityEngine;
 
 public class Unit : MonoBehaviour
 {
+    private const int DEFAULT_ACTION_POINTS = 2;
+
+    public static event EventHandler OnAnyActionPointsChanged;
+
+    [SerializeField] private int speed = 0;
+    [SerializeField] private int maxActionPoints = DEFAULT_ACTION_POINTS;
+
+    private int actionPoints;
+    private bool hasActedThisRound;
     private MoveAction moveAction;
     private SpinAction spinAction;
     private BaseAction[] baseActionArray;
@@ -13,6 +23,15 @@ public class Unit : MonoBehaviour
         moveAction = GetComponent<MoveAction>();
         spinAction = GetComponent<SpinAction>();
         baseActionArray = GetComponents<BaseAction>();
+
+        // If speed is not set in inspector, randomize speed between 5 and 30
+        if (speed <= 0)
+        {
+            speed = UnityEngine.Random.Range(5, 30);
+        }
+
+        actionPoints = maxActionPoints;
+        hasActedThisRound = false;
     }
 
     private void Start()
@@ -30,6 +49,48 @@ public class Unit : MonoBehaviour
             gridPosition = newgridPosition;
         }
     }
+
+    public bool TrySpendActionPointsToTakeAction(BaseAction baseAction)
+    {
+        if (CanSpendActionPointsToTakeAction(baseAction))
+        {
+            SpendActionPoints(baseAction.GetActionPointsCost());
+            return true;
+        }
+        return false;
+    }
+
+    public bool CanSpendActionPointsToTakeAction(BaseAction baseAction)
+    {
+        return actionPoints >= baseAction.GetActionPointsCost();
+    }
+
+    private void SpendActionPoints(int amount)
+    {
+        actionPoints -= amount;
+        if (actionPoints < 0) actionPoints = 0;
+        OnAnyActionPointsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ResetActionPoints()
+    {
+        actionPoints = maxActionPoints;
+        OnAnyActionPointsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetMaxActionPoints(int maxAP)
+    {
+        maxActionPoints = maxAP;
+        actionPoints = maxAP;
+        OnAnyActionPointsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public int GetSpeed() => speed;
+    public void SetSpeed(int newSpeed) => speed = newSpeed;
+    public int GetActionPoints() => actionPoints;
+    public int GetMaxActionPoints() => maxActionPoints;
+    public bool HasActedThisRound() => hasActedThisRound;
+    public void SetHasActedThisRound(bool value) => hasActedThisRound = value;
 
     public MoveAction GetMoveAction() => moveAction;
     public SpinAction GetSpinAction() => spinAction;

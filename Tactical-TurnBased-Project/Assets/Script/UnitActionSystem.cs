@@ -41,6 +41,7 @@ namespace kelsgaming.site
         private void Start()
         {
             _ = UnitActionSystemUI.Instance;
+            _ = TurnSystem.Instance;
         }
 
         private void Update()
@@ -54,21 +55,26 @@ namespace kelsgaming.site
                 return;
             }
 
-            // Cancel / Deselect with Escape
+            // Cancel / Return to Grid Navigation with Escape
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                CancelSelection();
+                if (currentFlowState == ActionFlowState.TargetGridSelection)
+                {
+                    CancelTargetSelection();
+                }
+                else if (currentFlowState == ActionFlowState.ActionMenuSelection)
+                {
+                    CloseActionMenu();
+                }
                 return;
             }
 
-            // Mouse click support
-            if (Input.GetMouseButtonDown(0))
+            // In Grid Navigation, pressing Enter or Space opens Action Menu for the active turn unit
+            if (currentFlowState == ActionFlowState.GridNavigation && selectedUnit != null)
             {
-                if (TryHandleUnitSelection()) return;
-
-                if (currentFlowState == ActionFlowState.TargetGridSelection)
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
                 {
-                    HandleMouseTargetAction();
+                    OpenActionMenu();
                 }
             }
         }
@@ -114,14 +120,35 @@ namespace kelsgaming.site
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
                 ConfirmMenuSelection();
-                return;
             }
 
-            // Escape: Cancel menu and deselect
+            // Escape: Close action menu and return to grid navigation
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                CancelSelection();
+                CloseActionMenu();
             }
+        }
+
+        public void OpenActionMenu()
+        {
+            if (selectedUnit == null || isBusy) return;
+            selectedMenuActionIndex = 0;
+            SetFlowState(ActionFlowState.ActionMenuSelection);
+            Debug.Log($"[UnitActionSystem] Action Menu opened for {selectedUnit.name} (AP: {selectedUnit.GetActionPoints()}/{selectedUnit.GetMaxActionPoints()}).");
+        }
+
+        public void CloseActionMenu()
+        {
+            SetFlowState(ActionFlowState.GridNavigation);
+            Debug.Log($"[UnitActionSystem] Action Menu closed. Navigating grid with WASD (Only {selectedUnit?.name} can act).");
+        }
+
+        public void CancelTargetSelection()
+        {
+            selectedAction = null;
+            SetFlowState(ActionFlowState.GridNavigation);
+            OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
+            Debug.Log($"[UnitActionSystem] Action target selection cancelled. Returned to Grid Navigation.");
         }
 
         public void ConfirmMenuSelection()
@@ -138,6 +165,13 @@ namespace kelsgaming.site
         {
             if (selectedUnit == null || chosenAction == null) return;
 
+            // Check if unit has enough Action Points
+            if (!selectedUnit.CanSpendActionPointsToTakeAction(chosenAction))
+            {
+                Debug.Log($"[UnitActionSystem] Not enough Action Points to execute {chosenAction.GetActionName()} (Costs {chosenAction.GetActionPointsCost()}, Available: {selectedUnit.GetActionPoints()}).");
+                return;
+            }
+
             if (chosenAction is MoveAction moveAction)
             {
                 SetSelectedAction(moveAction);
@@ -149,13 +183,15 @@ namespace kelsgaming.site
                 SetSelectedAction(spinAction);
                 SetFlowState(ActionFlowState.ActionExecuting);
                 SetBusy();
+
+                selectedUnit.TrySpendActionPointsToTakeAction(spinAction);
+
                 spinAction.TakeAction(selectedUnit.GetGridPosition(), () =>
                 {
                     ClearBusy();
-                    SetFlowState(ActionFlowState.GridNavigation);
-                    SetSelectedUnit(null);
+                    OnActionCompleted();
                 });
-                Debug.Log($"[Action Menu] Selected SPIN. Unit spinning.");
+                Debug.Log($"[Action Menu] Executing SPIN on {selectedUnit.name}.");
             }
             else
             {
@@ -164,70 +200,69 @@ namespace kelsgaming.site
             }
         }
 
-        private void HandleMouseTargetAction()
+        public void ExecuteGridTargetAction(GridPosition targetGridPosition)
         {
-            if (selectedAction == null) return;
+            if (selectedUnit == null || selectedAction == null) return;
 
-            GridPosition mouseGridPosition = LevelGrid.Instance.GetGridPosition(MouseWorld.GetPosition());
-            if (selectedAction.IsValidActionGridPosition(mouseGridPosition))
+            if (!selectedUnit.CanSpendActionPointsToTakeAction(selectedAction))
+            {
+                Debug.Log($"[UnitActionSystem] Not enough Action Points for {selectedAction.GetActionName()}.");
+                return;
+            }
+
+            if (selectedAction.IsValidActionGridPosition(targetGridPosition))
             {
                 SetFlowState(ActionFlowState.ActionExecuting);
                 SetBusy();
-                selectedAction.TakeAction(mouseGridPosition, () =>
+
+                selectedUnit.TrySpendActionPointsToTakeAction(selectedAction);
+
+                selectedAction.TakeAction(targetGridPosition, () =>
                 {
                     ClearBusy();
-                    SetFlowState(ActionFlowState.GridNavigation);
-                    SetSelectedUnit(null);
+                    OnActionCompleted();
                 });
             }
-        }
-
-        private bool TryHandleUnitSelection()
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit raycastHit, float.MaxValue, unitLayerMask))
+            else
             {
-                if (raycastHit.transform.TryGetComponent<Unit>(out Unit unit))
-                {
-                    SelectUnit(unit);
-                    return true;
-                }
+                Debug.Log($"[UnitActionSystem] Cell {targetGridPosition} is out of range for {selectedAction.GetActionName()}.");
             }
-            return false;
         }
 
-        public void SelectUnit(Unit unit)
+        private void OnActionCompleted()
         {
-            selectedUnit = unit;
-            selectedMenuActionIndex = 0;
-            if (unit != null)
+            selectedAction = null;
+            OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
+
+            if (selectedUnit != null && selectedUnit.GetActionPoints() <= 0)
             {
-                SetFlowState(ActionFlowState.ActionMenuSelection);
-                if (GridCursor.Instance != null)
-                {
-                    GridCursor.Instance.SetSelectedGridPosition(unit.GetGridPosition());
-                }
+                Debug.Log($"[UnitActionSystem] {selectedUnit.name} has used all Action Points. Ending turn automatically...");
+                TurnSystem.Instance.EndCurrentUnitTurn();
             }
             else
             {
                 SetFlowState(ActionFlowState.GridNavigation);
-                SetSelectedAction(null);
+                Debug.Log($"[UnitActionSystem] Action completed. {selectedUnit.name} has {selectedUnit.GetActionPoints()} AP remaining. Press Enter to choose next action.");
             }
-            OnSelectedUnitChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        public void SetSelectedUnit(Unit unit) => SelectUnit(unit);
-
-        public void CancelSelection()
+        public void SetActiveTurnUnit(Unit unit)
         {
-            selectedUnit = null;
+            selectedUnit = unit;
             selectedAction = null;
             selectedMenuActionIndex = 0;
             SetFlowState(ActionFlowState.GridNavigation);
+
+            if (unit != null && GridCursor.Instance != null)
+            {
+                GridCursor.Instance.SetSelectedGridPosition(unit.GetGridPosition());
+            }
+
             OnSelectedUnitChanged?.Invoke(this, EventArgs.Empty);
             OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
-            Debug.Log($"[UnitActionSystem] Selection cancelled.");
         }
+
+        public void SetSelectedUnit(Unit unit) => SetActiveTurnUnit(unit);
 
         public void SetSelectedAction(BaseAction baseAction)
         {

@@ -121,6 +121,7 @@ namespace kelsgaming.site
             if (LevelGrid.Instance == null || UnitActionSystem.Instance == null) return;
 
             UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
+            Unit activeUnit = UnitActionSystem.Instance.GetSelectedUnit();
 
             // 1. In Grid Navigation Mode:
             if (flowState == UnitActionSystem.ActionFlowState.GridNavigation)
@@ -130,14 +131,28 @@ namespace kelsgaming.site
                     List<Unit> unitList = LevelGrid.Instance.GetUnitListAtGridPosition(gridPosition);
                     if (unitList != null && unitList.Count > 0)
                     {
-                        Unit unitToSelect = unitList[0];
-                        UnitActionSystem.Instance.SelectUnit(unitToSelect);
-                        Debug.Log($"[GridCursor] Selected unit '{unitToSelect.name}' at {gridPosition}. Opening Action Menu.");
+                        Unit clickedUnit = unitList[0];
+                        if (clickedUnit == activeUnit)
+                        {
+                            // Active turn unit clicked -> Open action menu
+                            UnitActionSystem.Instance.OpenActionMenu();
+                        }
+                        else
+                        {
+                            // Another unit clicked -> Restriction: Cannot control other units during active turn!
+                            string activeName = activeUnit != null ? activeUnit.name : "None";
+                            int activeSpeed = activeUnit != null ? activeUnit.GetSpeed() : 0;
+                            Debug.Log($"[Turn System] Cannot select '{clickedUnit.name}' (Speed: {clickedUnit.GetSpeed()}). It is currently {activeName}'s turn (Speed: {activeSpeed})!");
+                        }
                     }
                 }
                 else
                 {
-                    Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
+                    // Empty cell pressed in Grid Navigation -> Open Action Menu for active unit
+                    if (activeUnit != null)
+                    {
+                        UnitActionSystem.Instance.OpenActionMenu();
+                    }
                 }
                 return;
             }
@@ -145,28 +160,7 @@ namespace kelsgaming.site
             // 2. In Target Grid Selection Mode (e.g. Move destination):
             if (flowState == UnitActionSystem.ActionFlowState.TargetGridSelection)
             {
-                Unit selectedUnit = UnitActionSystem.Instance.GetSelectedUnit();
-                BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
-
-                if (selectedUnit != null && selectedAction != null)
-                {
-                    if (selectedAction.IsValidActionGridPosition(gridPosition))
-                    {
-                        Debug.Log($"[GridCursor] Executing {selectedAction.GetActionName()} on '{selectedUnit.name}' to {gridPosition}.");
-                        UnitActionSystem.Instance.SetFlowState(UnitActionSystem.ActionFlowState.ActionExecuting);
-                        UnitActionSystem.Instance.SetBusy();
-                        selectedAction.TakeAction(gridPosition, () =>
-                        {
-                            UnitActionSystem.Instance.ClearBusy();
-                            UnitActionSystem.Instance.SetFlowState(UnitActionSystem.ActionFlowState.GridNavigation);
-                            UnitActionSystem.Instance.SetSelectedUnit(null);
-                        });
-                    }
-                    else
-                    {
-                        Debug.Log($"[GridCursor] Cell {gridPosition} is out of range for {selectedAction.GetActionName()}.");
-                    }
-                }
+                UnitActionSystem.Instance.ExecuteGridTargetAction(gridPosition);
             }
         }
 
