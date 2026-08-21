@@ -22,13 +22,45 @@ namespace kelsgaming.site
 
         private void Update()
         {
-            // Follow the selected grid cell smoothly
-            if (GridCursor.Instance != null && LevelGrid.Instance != null)
+            HandleCameraFollow();
+            HandleCameraRotation();
+            HandleCameraZoom();
+        }
+
+        private void HandleCameraFollow()
+        {
+            Vector3 targetPosition = transform.position;
+            Unit activeTurnUnit = TurnSystem.Instance != null ? TurnSystem.Instance.GetCurrentTurnUnit() : null;
+
+            // During Enemy Turn: dynamically follow the moving enemy's real-time world transform position
+            if (activeTurnUnit != null && activeTurnUnit.IsEnemy())
             {
-                Vector3 targetPosition = LevelGrid.Instance.GetWorldPosition(GridCursor.Instance.GetSelectedGridPosition());
-                transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * followSpeed);
+                targetPosition = activeTurnUnit.transform.position;
+
+                // Sync GridCursor with enemy's current tile
+                if (GridCursor.Instance != null && LevelGrid.Instance != null)
+                {
+                    GridCursor.Instance.SetSelectedGridPosition(activeTurnUnit.GetGridPosition());
+                }
+            }
+            else
+            {
+                // During Player Turn: follow the GridCursor (WASD tile selection) as usual
+                if (GridCursor.Instance != null && LevelGrid.Instance != null)
+                {
+                    targetPosition = LevelGrid.Instance.GetWorldPosition(GridCursor.Instance.GetSelectedGridPosition());
+                }
+                else if (activeTurnUnit != null)
+                {
+                    targetPosition = activeTurnUnit.transform.position;
+                }
             }
 
+            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * followSpeed);
+        }
+
+        private void HandleCameraRotation()
+        {
             // Camera Rotation Logic (Q / E)
             Vector3 rotationVector = Vector3.zero;
             if (Input.GetKey(KeyCode.Q))
@@ -41,7 +73,10 @@ namespace kelsgaming.site
             }
             float rotationSpeed = 100f;
             transform.eulerAngles += rotationVector * rotationSpeed * Time.deltaTime;
+        }
 
+        private void HandleCameraZoom()
+        {
             // Camera Zoom Logic (Mouse Scroll Wheel)
             if (virtualCamera != null)
             {
