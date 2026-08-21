@@ -23,6 +23,10 @@ namespace kelsgaming.site
                         instance = pathfindingGameObject.AddComponent<Pathfinding>();
                     }
                 }
+                if (instance.gridNodes == null)
+                {
+                    instance.Setup();
+                }
                 return instance;
             }
             private set
@@ -51,6 +55,8 @@ namespace kelsgaming.site
             {
                 obstaclesLayerMask = LayerMask.GetMask("Obstacles");
             }
+
+            Setup();
         }
 
         private void Start()
@@ -102,7 +108,7 @@ namespace kelsgaming.site
 
                     if (!hasObstacle)
                     {
-                        // Also check with small bounding box
+                        // Also check with bounding box
                         hasObstacle = Physics.CheckBox(
                             worldPosition + Vector3.up * 1f,
                             new Vector3(0.7f, 0.8f, 0.7f),
@@ -122,6 +128,8 @@ namespace kelsgaming.site
         public List<GridPosition> FindPath(GridPosition startGridPosition, GridPosition endGridPosition, out int pathLength)
         {
             pathLength = 0;
+
+            if (gridNodes == null) Setup();
 
             if (!IsValidGridPosition(startGridPosition) || !IsValidGridPosition(endGridPosition))
             {
@@ -264,7 +272,7 @@ namespace kelsgaming.site
             if (gridPosition.z - 1 >= 0) neighbourList.Add(GetNode(gridPosition.x, gridPosition.z - 1));
             if (gridPosition.z + 1 < height) neighbourList.Add(GetNode(gridPosition.x, gridPosition.z + 1));
 
-            // Diagonal neighbors (only if corner isn't completely blocked)
+            // Diagonal neighbors
             if (gridPosition.x - 1 >= 0)
             {
                 if (gridPosition.z - 1 >= 0) neighbourList.Add(GetNode(gridPosition.x - 1, gridPosition.z - 1));
@@ -281,12 +289,14 @@ namespace kelsgaming.site
 
         public PathNode GetNode(int x, int z)
         {
+            if (gridNodes == null) Setup();
             if (gridNodes == null || x < 0 || z < 0 || x >= width || z >= height) return null;
             return gridNodes[x, z];
         }
 
         public bool IsValidGridPosition(GridPosition gridPosition)
         {
+            if (gridNodes == null) Setup();
             return gridPosition.x >= 0 && gridPosition.z >= 0 && gridPosition.x < width && gridPosition.z < height;
         }
 

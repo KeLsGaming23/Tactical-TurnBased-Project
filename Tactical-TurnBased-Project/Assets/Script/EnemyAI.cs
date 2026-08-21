@@ -46,22 +46,36 @@ namespace kelsgaming.site
             if (TurnSystem.Instance != null)
             {
                 TurnSystem.Instance.OnTurnChanged += TurnSystem_OnTurnChanged;
+
+                Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
+                if (activeUnit != null && activeUnit.IsEnemy() && !isRunningAI)
+                {
+                    StartEnemyTurn(activeUnit);
+                }
             }
         }
 
         private void TurnSystem_OnTurnChanged(object sender, EventArgs e)
         {
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
-            if (activeUnit != null && activeUnit.IsEnemy())
+            if (activeUnit != null && activeUnit.IsEnemy() && !isRunningAI)
             {
-                StartCoroutine(RunEnemyTurnRoutine(activeUnit));
+                StartEnemyTurn(activeUnit);
             }
+        }
+
+        public void StartEnemyTurn(Unit enemyUnit)
+        {
+            if (enemyUnit == null || !enemyUnit.IsEnemy()) return;
+
+            StopAllCoroutines();
+            StartCoroutine(RunEnemyTurnRoutine(enemyUnit));
         }
 
         private IEnumerator RunEnemyTurnRoutine(Unit enemyUnit)
         {
             isRunningAI = true;
-            Debug.Log($"[EnemyAI] >>> ENEMY TURN START: {enemyUnit.name} (Speed: {enemyUnit.GetSpeed()}, AP: {enemyUnit.GetActionPoints()}) <<<");
+            Debug.Log($"[EnemyAI] >>> ENEMY TURN ACTIVE: {enemyUnit.name} (Speed: {enemyUnit.GetSpeed()}, AP: {enemyUnit.GetActionPoints()}) <<<");
 
             // Focus camera on the active enemy
             if (GridCursor.Instance != null)
@@ -131,12 +145,16 @@ namespace kelsgaming.site
 
                             actionTaken = true;
                         }
+                        else
+                        {
+                            Debug.Log($"[EnemyAI] {enemyUnit.name} already at best reachable position or blocked.");
+                        }
                     }
                 }
 
                 if (!actionTaken)
                 {
-                    // No valid actions possible (e.g. trapped or insufficient AP)
+                    // No valid actions possible (e.g. trapped, reached destination, or insufficient AP)
                     break;
                 }
 
@@ -146,11 +164,11 @@ namespace kelsgaming.site
                     yield return null;
                 }
 
-                // Pause slightly between actions
+                // Pause slightly between actions for readability
                 yield return new WaitForSeconds(0.5f);
             }
 
-            Debug.Log($"[EnemyAI] {enemyUnit.name} finished all actions. Ending turn...");
+            Debug.Log($"[EnemyAI] {enemyUnit.name} finished actions (Remaining AP: {enemyUnit?.GetActionPoints()}). Ending turn...");
             yield return new WaitForSeconds(0.4f);
 
             isRunningAI = false;
@@ -212,24 +230,20 @@ namespace kelsgaming.site
             GridPosition currentPos = enemyUnit.GetGridPosition();
             GridPosition targetPlayerPos = targetPlayer.GetGridPosition();
 
+            if (validMovePositions == null || validMovePositions.Count == 0)
+            {
+                return currentPos;
+            }
+
             GridPosition bestPosition = currentPos;
-            int bestPathCost = int.MaxValue;
+            int bestDistance = Mathf.Abs(currentPos.x - targetPlayerPos.x) + Mathf.Abs(currentPos.z - targetPlayerPos.z);
 
             foreach (GridPosition movePos in validMovePositions)
             {
-                int pathCost = int.MaxValue;
-                if (Pathfinding.Instance != null)
+                int distance = Mathf.Abs(movePos.x - targetPlayerPos.x) + Mathf.Abs(movePos.z - targetPlayerPos.z);
+                if (distance < bestDistance)
                 {
-                    pathCost = Pathfinding.Instance.GetPathLength(movePos, targetPlayerPos);
-                }
-                else
-                {
-                    pathCost = Mathf.Abs(movePos.x - targetPlayerPos.x) + Mathf.Abs(movePos.z - targetPlayerPos.z);
-                }
-
-                if (pathCost < bestPathCost)
-                {
-                    bestPathCost = pathCost;
+                    bestDistance = distance;
                     bestPosition = movePos;
                 }
             }

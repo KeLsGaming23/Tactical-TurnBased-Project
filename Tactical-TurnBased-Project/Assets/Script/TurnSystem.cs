@@ -48,6 +48,9 @@ namespace kelsgaming.site
 
         private void Start()
         {
+            _ = Pathfinding.Instance;
+            _ = EnemyAI.Instance;
+
             RefreshAllUnitsList();
             StartNextTurn();
         }
@@ -126,7 +129,14 @@ namespace kelsgaming.site
 
             OnTurnChanged?.Invoke(this, EventArgs.Empty);
 
-            Debug.Log($"[TurnSystem] >>> TURN START: {currentTurnUnit.name} (Speed: {currentTurnUnit.GetSpeed()}, AP: {currentTurnUnit.GetActionPoints()}) <<<");
+            string faction = currentTurnUnit.IsEnemy() ? "Enemy" : "Player";
+            Debug.Log($"[TurnSystem] >>> TURN START: [{faction}] {currentTurnUnit.name} (Speed: {currentTurnUnit.GetSpeed()}, AP: {currentTurnUnit.GetActionPoints()}) <<<");
+
+            // If it's an Enemy unit's turn, trigger Enemy AI immediately!
+            if (currentTurnUnit.IsEnemy() && EnemyAI.Instance != null)
+            {
+                EnemyAI.Instance.StartEnemyTurn(currentTurnUnit);
+            }
         }
 
         public void EndCurrentUnitTurn()
