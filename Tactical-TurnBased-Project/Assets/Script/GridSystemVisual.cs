@@ -50,6 +50,11 @@ namespace kelsgaming.site
             UpdateGridVisual();
         }
 
+        private void Update()
+        {
+            UpdateGridVisual();
+        }
+
         private void GridCursor_OnSelectedGridPositionChanged(object sender, EventArgs e)
         {
             UpdateGridVisual();

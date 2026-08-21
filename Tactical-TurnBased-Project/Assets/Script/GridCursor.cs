@@ -60,7 +60,7 @@ namespace kelsgaming.site
         private void Update()
         {
             HandleMovementInput();
-            HandleInspectionInput();
+            HandleInteractionInput();
         }
 
         private void HandleMovementInput()
@@ -97,27 +97,52 @@ namespace kelsgaming.site
             }
         }
 
-        private void HandleInspectionInput()
+        private void HandleInteractionInput()
         {
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                InspectCell(selectedGridPosition);
+                HandleCellAction(selectedGridPosition);
             }
         }
 
-        public void InspectCell(GridPosition gridPosition)
+        public void HandleCellAction(GridPosition gridPosition)
         {
             if (LevelGrid.Instance == null) return;
 
-            if (!LevelGrid.Instance.HasAnyUnitOnGridPosition(gridPosition))
+            // 1. If the cell has a unit on it, select that unit
+            if (LevelGrid.Instance.HasAnyUnitOnGridPosition(gridPosition))
             {
-                Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty");
+                List<Unit> unitList = LevelGrid.Instance.GetUnitListAtGridPosition(gridPosition);
+                if (unitList != null && unitList.Count > 0)
+                {
+                    Unit unitToSelect = unitList[0];
+                    if (UnitActionSystem.Instance != null)
+                    {
+                        UnitActionSystem.Instance.SetSelectedUnit(unitToSelect);
+                    }
+                    Debug.Log($"[GridCursor] Selected unit '{unitToSelect.name}' at {gridPosition}.");
+                }
+                return;
+            }
+
+            // 2. If the cell is empty and we currently have a selected unit, check if within movement range
+            Unit selectedUnit = UnitActionSystem.Instance != null ? UnitActionSystem.Instance.GetSelectedUnit() : null;
+            if (selectedUnit != null && selectedUnit.GetMoveAction() != null)
+            {
+                if (selectedUnit.GetMoveAction().IsValidActionGridPosition(gridPosition))
+                {
+                    Debug.Log($"[GridCursor] Moving '{selectedUnit.name}' to {gridPosition}.");
+                    selectedUnit.GetMoveAction().Move(gridPosition);
+                }
+                else
+                {
+                    Debug.Log($"[GridCursor] Cell {gridPosition} is out of move range for '{selectedUnit.name}'.");
+                }
             }
             else
             {
-                List<Unit> unitList = LevelGrid.Instance.GetUnitListAtGridPosition(gridPosition);
-                string unitNames = string.Join(", ", unitList.ConvertAll(u => u.name));
-                Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Contains -> {unitNames} (Total units: {unitList.Count})");
+                // Cell is empty and no unit is selected
+                Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
             }
         }
 
