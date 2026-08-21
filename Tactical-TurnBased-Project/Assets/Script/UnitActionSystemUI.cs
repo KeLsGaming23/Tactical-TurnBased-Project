@@ -29,10 +29,12 @@ namespace kelsgaming.site
         }
 
         private GUIStyle panelStyle;
+        private GUIStyle enemyPanelStyle;
         private GUIStyle buttonStyle;
         private GUIStyle selectedButtonStyle;
         private GUIStyle disabledButtonStyle;
         private GUIStyle headerStyle;
+        private GUIStyle enemyHeaderStyle;
         private GUIStyle subheaderStyle;
         private GUIStyle apBadgeStyle;
         private GUIStyle speedAdvantageStyle;
@@ -56,12 +58,19 @@ namespace kelsgaming.site
         {
             if (stylesInitialized) return;
 
-            // Panel Box Style
+            // Normal Panel Box Style
             panelStyle = new GUIStyle(GUI.skin.box);
             Texture2D panelTex = new Texture2D(1, 1);
             panelTex.SetPixel(0, 0, new Color(0.05f, 0.07f, 0.10f, 0.95f));
             panelTex.Apply();
             panelStyle.normal.background = panelTex;
+
+            // Enemy Panel Box Style
+            enemyPanelStyle = new GUIStyle(GUI.skin.box);
+            Texture2D enemyPanelTex = new Texture2D(1, 1);
+            enemyPanelTex.SetPixel(0, 0, new Color(0.18f, 0.04f, 0.05f, 0.95f));
+            enemyPanelTex.Apply();
+            enemyPanelStyle.normal.background = enemyPanelTex;
 
             // Normal Button Style
             buttonStyle = new GUIStyle(GUI.skin.button);
@@ -93,6 +102,10 @@ namespace kelsgaming.site
             headerStyle.fontStyle = FontStyle.Bold;
             headerStyle.alignment = TextAnchor.MiddleCenter;
             headerStyle.normal.textColor = new Color(0.3f, 0.9f, 1f, 1f);
+
+            // Enemy Header Style
+            enemyHeaderStyle = new GUIStyle(headerStyle);
+            enemyHeaderStyle.normal.textColor = new Color(1f, 0.3f, 0.3f, 1f);
 
             // Subheader Style
             subheaderStyle = new GUIStyle(GUI.skin.label);
@@ -154,6 +167,15 @@ namespace kelsgaming.site
             DrawTopTurnBanner();
             DrawTurnOrderQueue();
 
+            Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
+
+            // If active unit is Enemy, draw Enemy status instead of human menu
+            if (activeUnit != null && activeUnit.IsEnemy())
+            {
+                DrawEnemyTurnIndicator(activeUnit);
+                return;
+            }
+
             UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
 
             // 1. Action Menu Selection State: Render Vertical Action Choice Menu
@@ -186,14 +208,18 @@ namespace kelsgaming.site
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
             if (activeUnit == null) return;
 
-            float bannerWidth = 420f;
-            float bannerHeight = 44f;
+            float bannerWidth = 440f;
+            float bannerHeight = 46f;
             float x = (Screen.width - bannerWidth) * 0.5f;
             float y = 12f;
 
-            GUI.Box(new Rect(x, y, bannerWidth, bannerHeight), GUIContent.none, panelStyle);
+            GUIStyle activePanelStyle = activeUnit.IsEnemy() ? enemyPanelStyle : panelStyle;
+            GUIStyle activeHeaderStyle = activeUnit.IsEnemy() ? enemyHeaderStyle : headerStyle;
 
-            string roundText = $"ROUND {TurnSystem.Instance.GetRoundNumber()}  |  TURN: {activeUnit.name}";
+            GUI.Box(new Rect(x, y, bannerWidth, bannerHeight), GUIContent.none, activePanelStyle);
+
+            string factionTag = activeUnit.IsEnemy() ? "[ENEMY TURN]" : "[PLAYER TURN]";
+            string roundText = $"ROUND {TurnSystem.Instance.GetRoundNumber()}  |  {factionTag} {activeUnit.name}";
             string statsText = $"Speed: {activeUnit.GetSpeed()}  |  Action Points: {activeUnit.GetActionPoints()} / {activeUnit.GetMaxActionPoints()}";
 
             if (TurnSystem.Instance.HasSpeedAdvantage())
@@ -201,8 +227,8 @@ namespace kelsgaming.site
                 statsText += "  ⚡ DOUBLE MOVE (4 AP)";
             }
 
-            GUI.Label(new Rect(x, y + 4f, bannerWidth, 18f), roundText, headerStyle);
-            GUI.Label(new Rect(x, y + 22f, bannerWidth, 18f), statsText, apBadgeStyle);
+            GUI.Label(new Rect(x, y + 4f, bannerWidth, 18f), roundText, activeHeaderStyle);
+            GUI.Label(new Rect(x, y + 23f, bannerWidth, 18f), statsText, apBadgeStyle);
         }
 
         private void DrawTurnOrderQueue()
@@ -212,7 +238,7 @@ namespace kelsgaming.site
 
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
 
-            float qWidth = 210f;
+            float qWidth = 230f;
             float qHeight = 26f + sortedUnits.Count * 20f;
             float qX = Screen.width - qWidth - 14f;
             float qY = 12f;
@@ -225,20 +251,44 @@ namespace kelsgaming.site
                 Unit unit = sortedUnits[i];
                 bool isCurrent = unit == activeUnit;
                 string marker = isCurrent ? "▶ " : (unit.HasActedThisRound() ? "✓ " : "  ");
+                string faction = unit.IsEnemy() ? "[E]" : "[P]";
                 string status = unit.HasActedThisRound() ? "[Done]" : $"{unit.GetActionPoints()} AP";
-                string itemText = $"{marker}{unit.name} (Spd: {unit.GetSpeed()}) - {status}";
+                string itemText = $"{marker}{faction} {unit.name} (Spd: {unit.GetSpeed()}) - {status}";
 
-                Color textColor = isCurrent ? new Color(0.2f, 1f, 0.45f, 1f) : (unit.HasActedThisRound() ? Color.gray : Color.white);
+                Color textColor = Color.white;
+                if (isCurrent)
+                {
+                    textColor = unit.IsEnemy() ? new Color(1f, 0.4f, 0.4f, 1f) : new Color(0.2f, 1f, 0.45f, 1f);
+                }
+                else if (unit.HasActedThisRound())
+                {
+                    textColor = Color.gray;
+                }
+                else
+                {
+                    textColor = unit.IsEnemy() ? new Color(1f, 0.7f, 0.7f, 0.9f) : new Color(0.7f, 0.9f, 1f, 0.9f);
+                }
+
                 queueItemStyle.normal.textColor = textColor;
-
                 GUI.Label(new Rect(qX + 8f, qY + 22f + i * 19f, qWidth - 16f, 18f), itemText, queueItemStyle);
             }
+        }
+
+        private void DrawEnemyTurnIndicator(Unit enemyUnit)
+        {
+            float width = 360f;
+            float height = 40f;
+            float x = (Screen.width - width) * 0.5f;
+            float y = Screen.height - height - 20f;
+
+            GUI.Box(new Rect(x, y, width, height), GUIContent.none, enemyPanelStyle);
+            GUI.Label(new Rect(x, y + 8f, width, 24f), $"Enemy {enemyUnit.name} is taking action...", busyStyle);
         }
 
         private void DrawActionMenu()
         {
             Unit selectedUnit = UnitActionSystem.Instance.GetSelectedUnit();
-            if (selectedUnit == null) return;
+            if (selectedUnit == null || selectedUnit.IsEnemy()) return;
 
             BaseAction[] actions = selectedUnit.GetBaseActionArray();
             if (actions == null || actions.Length == 0) return;
@@ -319,7 +369,7 @@ namespace kelsgaming.site
         private void DrawNavigationPrompt()
         {
             Unit activeUnit = TurnSystem.Instance.GetCurrentTurnUnit();
-            if (activeUnit == null) return;
+            if (activeUnit == null || activeUnit.IsEnemy()) return;
 
             float width = 360f;
             float height = 34f;

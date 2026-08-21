@@ -42,13 +42,14 @@ namespace kelsgaming.site
         {
             _ = UnitActionSystemUI.Instance;
             _ = TurnSystem.Instance;
+            _ = EnemyAI.Instance;
         }
 
         private void Update()
         {
             if (isBusy) return;
 
-            // Handle Menu Selection State
+            // Handle Menu Selection State (for player units only)
             if (currentFlowState == ActionFlowState.ActionMenuSelection)
             {
                 HandleMenuSelectionInput();
@@ -69,8 +70,8 @@ namespace kelsgaming.site
                 return;
             }
 
-            // Quick shortcut: Press Space in Grid Navigation to refocus active unit and open menu
-            if (currentFlowState == ActionFlowState.GridNavigation && selectedUnit != null)
+            // Quick shortcut: Press Space in Grid Navigation to refocus active player unit and open menu
+            if (currentFlowState == ActionFlowState.GridNavigation && selectedUnit != null && !selectedUnit.IsEnemy())
             {
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
@@ -85,7 +86,7 @@ namespace kelsgaming.site
 
         private void HandleMenuSelectionInput()
         {
-            if (selectedUnit == null)
+            if (selectedUnit == null || selectedUnit.IsEnemy())
             {
                 SetFlowState(ActionFlowState.GridNavigation);
                 return;
@@ -135,7 +136,7 @@ namespace kelsgaming.site
 
         public void OpenActionMenu()
         {
-            if (selectedUnit == null || isBusy) return;
+            if (selectedUnit == null || selectedUnit.IsEnemy() || isBusy) return;
             selectedMenuActionIndex = 0;
             SetFlowState(ActionFlowState.ActionMenuSelection);
             Debug.Log($"[UnitActionSystem] Action Menu opened for {selectedUnit.name} (AP: {selectedUnit.GetActionPoints()}/{selectedUnit.GetMaxActionPoints()}).");
@@ -146,7 +147,7 @@ namespace kelsgaming.site
             selectedAction = null;
             SetFlowState(ActionFlowState.GridNavigation);
             OnSelectedActionChanged?.Invoke(this, EventArgs.Empty);
-            Debug.Log($"[UnitActionSystem] Action Menu closed. Exploring grid with WASD (Only {selectedUnit?.name} can act).");
+            Debug.Log($"[UnitActionSystem] Action Menu closed. Exploring grid with WASD.");
         }
 
         public void CancelTargetSelection()
@@ -159,7 +160,7 @@ namespace kelsgaming.site
 
         public void ConfirmMenuSelection()
         {
-            if (selectedUnit == null) return;
+            if (selectedUnit == null || selectedUnit.IsEnemy()) return;
             BaseAction[] actions = selectedUnit.GetBaseActionArray();
             if (actions == null || selectedMenuActionIndex < 0 || selectedMenuActionIndex >= actions.Length) return;
 
@@ -248,7 +249,7 @@ namespace kelsgaming.site
             else
             {
                 SetFlowState(ActionFlowState.GridNavigation);
-                Debug.Log($"[UnitActionSystem] Action completed. {selectedUnit.name} has {selectedUnit.GetActionPoints()} AP remaining. Press Enter on unit to choose next action.");
+                Debug.Log($"[UnitActionSystem] Action completed. {selectedUnit.name} has {selectedUnit.GetActionPoints()} AP remaining.");
             }
         }
 

@@ -8,6 +8,7 @@ public class Unit : MonoBehaviour
 
     public static event EventHandler OnAnyActionPointsChanged;
 
+    [SerializeField] private bool isEnemy = false;
     [SerializeField] private int speed = 0;
     [SerializeField] private int maxActionPoints = DEFAULT_ACTION_POINTS;
 
@@ -62,6 +63,7 @@ public class Unit : MonoBehaviour
 
     public bool CanSpendActionPointsToTakeAction(BaseAction baseAction)
     {
+        if (baseAction == null) return false;
         return actionPoints >= baseAction.GetActionPointsCost();
     }
 
@@ -85,6 +87,8 @@ public class Unit : MonoBehaviour
         OnAnyActionPointsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public bool IsEnemy() => isEnemy;
+    public void SetIsEnemy(bool value) => isEnemy = value;
     public int GetSpeed() => speed;
     public void SetSpeed(int newSpeed) => speed = newSpeed;
     public int GetActionPoints() => actionPoints;
