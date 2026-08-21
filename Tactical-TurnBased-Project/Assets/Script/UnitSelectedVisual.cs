@@ -7,13 +7,22 @@ namespace kelsgaming.site
     {
         [SerializeField] private Unit unit;
         private MeshRenderer meshRenderer;
+
         private void Awake()
         {
             meshRenderer = GetComponent<MeshRenderer>();
+            if (unit == null)
+            {
+                unit = GetComponentInParent<Unit>();
+            }
         }
+
         private void Start()
         {
-            UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
+            if (UnitActionSystem.Instance != null)
+            {
+                UnitActionSystem.Instance.OnSelectedUnitChanged += UnitActionSystem_OnSelectedUnitChanged;
+            }
             UpateVisual();
         }
 
@@ -21,15 +30,26 @@ namespace kelsgaming.site
         {
             UpateVisual();
         }
+
         private void UpateVisual()
         {
-            if(UnitActionSystem.Instance.GetSelectedUnit() == unit)
+            if (meshRenderer == null) return;
+
+            if (UnitActionSystem.Instance != null && UnitActionSystem.Instance.GetSelectedUnit() == unit)
             {
                 meshRenderer.enabled = true;
             }
             else
             {
                 meshRenderer.enabled = false;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (UnitActionSystem.Instance != null)
+            {
+                UnitActionSystem.Instance.OnSelectedUnitChanged -= UnitActionSystem_OnSelectedUnitChanged;
             }
         }
     }

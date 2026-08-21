@@ -89,20 +89,27 @@ namespace kelsgaming.site
 
         public void HideAllGridPosition()
         {
+            if (gridSystemVisualSinglesArray == null) return;
+
             for (int x = 0; x < LevelGrid.Instance.GetWidth(); x++)
             {
                 for (int z = 0; z < LevelGrid.Instance.GetHeight(); z++)
                 {
-                    gridSystemVisualSinglesArray[x, z].Hide();
+                    if (gridSystemVisualSinglesArray[x, z] != null)
+                    {
+                        gridSystemVisualSinglesArray[x, z].Hide();
+                    }
                 }
             }
         }
 
         public void ShowGridPositionList(List<GridPosition> gridPositionsList, Material material = null)
         {
+            if (gridSystemVisualSinglesArray == null || gridPositionsList == null) return;
+
             foreach (GridPosition gridPosition in gridPositionsList)
             {
-                if (LevelGrid.Instance.IsValidGridPosition(gridPosition))
+                if (LevelGrid.Instance.IsValidGridPosition(gridPosition) && gridSystemVisualSinglesArray[gridPosition.x, gridPosition.z] != null)
                 {
                     gridSystemVisualSinglesArray[gridPosition.x, gridPosition.z].Show(material);
                 }
@@ -128,13 +135,33 @@ namespace kelsgaming.site
             }
 
             // 2. Highlight and elevate currently selected cursor grid position
-            if (GridCursor.Instance != null)
+            if (GridCursor.Instance != null && gridSystemVisualSinglesArray != null)
             {
                 GridPosition selectedGridPosition = GridCursor.Instance.GetSelectedGridPosition();
-                if (LevelGrid.Instance.IsValidGridPosition(selectedGridPosition))
+                if (LevelGrid.Instance.IsValidGridPosition(selectedGridPosition) && gridSystemVisualSinglesArray[selectedGridPosition.x, selectedGridPosition.z] != null)
                 {
                     gridSystemVisualSinglesArray[selectedGridPosition.x, selectedGridPosition.z].ShowSelected(selectedGridMaterial);
                 }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (GridCursor.Instance != null)
+            {
+                GridCursor.Instance.OnSelectedGridPositionChanged -= GridCursor_OnSelectedGridPositionChanged;
+            }
+
+            if (UnitActionSystem.Instance != null)
+            {
+                UnitActionSystem.Instance.OnSelectedUnitChanged -= UnitActionSystem_OnSelectedUnitChanged;
+                UnitActionSystem.Instance.OnSelectedActionChanged -= UnitActionSystem_OnSelectedActionChanged;
+                UnitActionSystem.Instance.OnActionFlowStateChanged -= UnitActionSystem_OnActionFlowStateChanged;
+            }
+
+            if (TurnSystem.Instance != null)
+            {
+                TurnSystem.Instance.OnTurnChanged -= TurnSystem_OnTurnChanged;
             }
         }
     }
