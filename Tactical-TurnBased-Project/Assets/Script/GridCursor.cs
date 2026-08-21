@@ -59,7 +59,13 @@ namespace kelsgaming.site
 
         private void Update()
         {
-            if (UnitActionSystem.Instance != null && UnitActionSystem.Instance.IsBusy())
+            if (UnitActionSystem.Instance == null) return;
+
+            // When in Action Menu Selection or Action Executing, WASD grid navigation is disabled
+            UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
+            if (flowState == UnitActionSystem.ActionFlowState.ActionMenuSelection ||
+                flowState == UnitActionSystem.ActionFlowState.ActionExecuting ||
+                UnitActionSystem.Instance.IsBusy())
             {
                 return;
             }
@@ -112,51 +118,55 @@ namespace kelsgaming.site
 
         public void HandleCellAction(GridPosition gridPosition)
         {
-            if (LevelGrid.Instance == null) return;
+            if (LevelGrid.Instance == null || UnitActionSystem.Instance == null) return;
 
-            // 1. If the cell has a unit on it, select that unit
-            if (LevelGrid.Instance.HasAnyUnitOnGridPosition(gridPosition))
+            UnitActionSystem.ActionFlowState flowState = UnitActionSystem.Instance.GetFlowState();
+
+            // 1. In Grid Navigation Mode:
+            if (flowState == UnitActionSystem.ActionFlowState.GridNavigation)
             {
-                List<Unit> unitList = LevelGrid.Instance.GetUnitListAtGridPosition(gridPosition);
-                if (unitList != null && unitList.Count > 0)
+                if (LevelGrid.Instance.HasAnyUnitOnGridPosition(gridPosition))
                 {
-                    Unit unitToSelect = unitList[0];
-                    if (UnitActionSystem.Instance != null)
+                    List<Unit> unitList = LevelGrid.Instance.GetUnitListAtGridPosition(gridPosition);
+                    if (unitList != null && unitList.Count > 0)
                     {
-                        UnitActionSystem.Instance.SetSelectedUnit(unitToSelect);
+                        Unit unitToSelect = unitList[0];
+                        UnitActionSystem.Instance.SelectUnit(unitToSelect);
+                        Debug.Log($"[GridCursor] Selected unit '{unitToSelect.name}' at {gridPosition}. Opening Action Menu.");
                     }
-                    Debug.Log($"[GridCursor] Selected unit '{unitToSelect.name}' at {gridPosition}.");
+                }
+                else
+                {
+                    Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
                 }
                 return;
             }
 
-            // 2. If the cell is empty and we currently have a selected unit and action
-            Unit selectedUnit = UnitActionSystem.Instance != null ? UnitActionSystem.Instance.GetSelectedUnit() : null;
-            BaseAction selectedAction = UnitActionSystem.Instance != null ? UnitActionSystem.Instance.GetSelectedAction() : null;
-
-            if (selectedUnit != null && selectedAction != null)
+            // 2. In Target Grid Selection Mode (e.g. Move destination):
+            if (flowState == UnitActionSystem.ActionFlowState.TargetGridSelection)
             {
-                if (selectedAction.IsValidActionGridPosition(gridPosition))
+                Unit selectedUnit = UnitActionSystem.Instance.GetSelectedUnit();
+                BaseAction selectedAction = UnitActionSystem.Instance.GetSelectedAction();
+
+                if (selectedUnit != null && selectedAction != null)
                 {
-                    Debug.Log($"[GridCursor] Executing {selectedAction.GetActionName()} on '{selectedUnit.name}' to {gridPosition}.");
-                    UnitActionSystem.Instance.SetBusy();
-                    selectedAction.TakeAction(gridPosition, () =>
+                    if (selectedAction.IsValidActionGridPosition(gridPosition))
                     {
-                        if (UnitActionSystem.Instance != null)
+                        Debug.Log($"[GridCursor] Executing {selectedAction.GetActionName()} on '{selectedUnit.name}' to {gridPosition}.");
+                        UnitActionSystem.Instance.SetFlowState(UnitActionSystem.ActionFlowState.ActionExecuting);
+                        UnitActionSystem.Instance.SetBusy();
+                        selectedAction.TakeAction(gridPosition, () =>
                         {
                             UnitActionSystem.Instance.ClearBusy();
-                        }
-                    });
+                            UnitActionSystem.Instance.SetFlowState(UnitActionSystem.ActionFlowState.GridNavigation);
+                            UnitActionSystem.Instance.SetSelectedUnit(null);
+                        });
+                    }
+                    else
+                    {
+                        Debug.Log($"[GridCursor] Cell {gridPosition} is out of range for {selectedAction.GetActionName()}.");
+                    }
                 }
-                else
-                {
-                    Debug.Log($"[GridCursor] Cell {gridPosition} is out of range for {selectedAction.GetActionName()}.");
-                }
-            }
-            else
-            {
-                // Cell is empty and no unit is selected -> do nothing
-                Debug.Log($"[GridCursor] Cell ({gridPosition.x}, {gridPosition.z}): Empty.");
             }
         }
 
